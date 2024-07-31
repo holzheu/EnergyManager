@@ -19,3 +19,6 @@ Based on PV and temperature forecasts and day-ahead electricity prices, the Ener
 - [Kostal Plenticoe Plus](https://www.kostal-solar-electric.com/de-de/produkte/hybrid-wechselrichter/plenticore-plus/)
 - DYI electric car charger
 - TODO: Heatpumps (Dimplex AWHP, Daikin AAHP)
+
+
+![Example Chart](https://github.com/holzheu/EnergyManager/blob/main/Chart.jpeg?raw=true)
