@@ -16,7 +16,7 @@ Based on PV and temperature forecasts and day-ahead electricity prices, the Ener
 
 ## Connected Devices
 
-- [Kostal Plenticoe Plus](https://www.kostal-solar-electric.com/de-de/produkte/hybrid-wechselrichter/plenticore-plus/)
+- [Kostal Plenticore Plus](https://www.kostal-solar-electric.com/de-de/produkte/hybrid-wechselrichter/plenticore-plus/)
 - DYI electric car charger
 - TODO: Heatpumps (Dimplex AWHP, Daikin AAHP)
 
