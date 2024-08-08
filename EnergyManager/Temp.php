@@ -1,7 +1,12 @@
 <?php
-
+/**
+ * Temperature forcast classes
+ */
 require_once(dirname(__FILE__) ."/Device.php");
 
+/**
+ * Abstract Temp class
+ */
 abstract class Temp extends Device {
 
     protected $hourly = [];
@@ -17,7 +22,9 @@ abstract class Temp extends Device {
     }
 }
 
-
+/**
+ * Implementation for OpenMeto
+ */
 class Temp_OpenMeteo extends Temp {
     public function __construct(array $settings = []) {
         $defaults = [
@@ -25,7 +32,7 @@ class Temp_OpenMeteo extends Temp {
             "latitude" => null,
             "refresh" => 3600 * 3
         ];
-        $this->settings = $this->check_settings($settings, $defaults, "api.open-meteo.com");
+        $this->settings = $this->check_settings($settings, $defaults);
        
     }
 

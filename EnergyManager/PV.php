@@ -1,8 +1,14 @@
 <?php
+/**
+ * PV classes
+ */
 
 require_once(dirname(__FILE__) ."/Device.php");
 
 
+/**
+ * Abstract PV class
+ */
 abstract class PV extends Device {
     protected $production=[];
 
@@ -12,7 +18,11 @@ abstract class PV extends Device {
 
 }
 
-
+/**
+ * Dummy PV class
+ * 
+ * Uses an old json file from solarprognose for a dummy prediction for today and tomorrow
+ */
 class PV_Dummy extends PV {
     public function refresh(){
         $json_file = file_get_contents("solar.json");
@@ -35,7 +45,12 @@ class PV_Dummy extends PV {
     }
 }
 
-
+/**
+ * Implementation for solarprognose.de
+ * 
+ * You need a configured plant (plant_id) and
+ * an access token
+ */
 class PV_Solarprognose extends PV {
 
     public function __construct($settings) {
@@ -45,7 +60,7 @@ class PV_Solarprognose extends PV {
             "factor" => 1,
             "refresh" => 3600 * 3
         ];
-        $this->settings = $this->check_settings($settings, $defaults, "solarprognose.de");
+        $this->settings = $this->check_settings($settings, $defaults);
 
     }
     public function refresh(){

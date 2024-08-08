@@ -1,7 +1,14 @@
 <?php
+/**
+ * BEV classes
+ * 
+ */
 
 require_once (dirname(__FILE__) . "/Device.php");
 
+/**
+ * Abstract BEV class
+ */
 abstract class BEV extends Device
 {
     protected $kwh = 20;
@@ -61,6 +68,9 @@ abstract class BEV extends Device
 }
 
 
+/**
+ * Dummy BEV class
+ */
 class BEV_Dummy extends BEV
 {
 
@@ -73,7 +83,7 @@ class BEV_Dummy extends BEV
             'min_kw' => 2.2,
             'max_kw' => 2.2
         ];
-        $this->settings = $this->check_settings($settings, $defaults, "BEV");
+        $this->settings = $this->check_settings($settings, $defaults);
         $this->max_kw = $this->settings['max_kw'];
         $this->min_kw = $this->settings['min_kw'];
         $this->kwh = $this->settings['kwh'];
@@ -92,7 +102,17 @@ class BEV_Dummy extends BEV
     }
 }
 
-
+/**
+ * DIY charger
+ * 
+ * Small ESP-Device which gives the
+ * - current SOC of the BEV
+ * - Minimum SOC
+ * - Maximum SOC
+ * - Time left to charge
+ * 
+ * Switches on relais via get-Request 
+ */
 class BEV_DIY extends BEV
 {
     public $last_command;
@@ -105,7 +125,7 @@ class BEV_DIY extends BEV
             'kw' => null,
             "refresh" => 30
         ];
-        $this->settings = $this->check_settings($settings, $defaults, "BEV");
+        $this->settings = $this->check_settings($settings, $defaults);
         $this->max_kw = $this->settings['kw'];
         $this->min_kw = $this->settings['kw'];
         $this->kwh = $this->settings['kwh'];

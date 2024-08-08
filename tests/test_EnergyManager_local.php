@@ -2,8 +2,11 @@
 <?php
 
 require_once dirname(__FILE__) . '/../EnergyManager/EnergyManager.php';
-require_once dirname(__FILE__) .'/../EnergyManager/secrets.php';
 
+// Defines constants used to configure objects
+require_once dirname(__FILE__) . '/../EnergyManager/secrets.php';
+
+// Create objects
 $price = new Price_Awattar();
 $hp = new Heatpump_quadratic([
     "lin_coef" => 0.017678,
@@ -18,7 +21,6 @@ $bev = new BEV_DIY([
     'kwh' => 17.9,
     'kw' => 2.2
 ]);
-
 $pv = new PV_Solarprognose([
     'access_token' => Solarprognose_access_token,
     'plant_id' => Solarprognose_plant_id,
@@ -27,8 +29,7 @@ $pv = new PV_Solarprognose([
 $house = new House_constant(['kwh_per_day' => 10]);
 $bat = new Battery_Kostal_Plenticore_Plus(['ip' => Kostal_Plenticore_Plus_ip]);
 
-
-
+//Create Manager 
 $manager = new EnergyManager($pv, $bat, $price, $house, $bev, $hp, $temp);
 echo $manager->plan();
 print_r($manager->get_planning_info());

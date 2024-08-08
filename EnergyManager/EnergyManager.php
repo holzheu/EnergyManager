@@ -234,6 +234,13 @@ class EnergyManager
     }
 
 
+    /**
+     * Save the charge plan
+     * @param DateTime $dt Reference to DateTime object. 
+     * @param string $to End hour (not included)
+     * @param float $soc Start SOC
+     * @return float End SOC
+     */
     private function save_charge_plan(DateTime &$dt, string $to, float $soc)
     {
         while ($dt->format(DATE_H) < $to) {
@@ -269,7 +276,7 @@ class EnergyManager
      * @param float $soc Start SOC
      * @param string $from Start hour
      * @param string $to End hour (not included)
-     * @return array End SOC, grid consumption
+     * @return array [End SOC, grid consumption]
      */
     private function find_no_discharge(float $soc, string $from, string $to = null)
     {
@@ -296,9 +303,16 @@ class EnergyManager
 
     }
 
+    /**
+     * Find active charge hours
+     * @param float $soc Start SOC
+     * @param float $grid Grid demand before active charge
+     * @param string $from Start hour
+     * @param string $to End hour (not included)
+     * @return void
+     */
     private function find_active_charge(float $soc, float $grid, string $from, string $to = null){
-        $bat_settings = $this->bat_obj->getSettings();
-        $soc_rate = $bat_settings['charge_power']/$this->bat_obj->getCapacity()*100;
+        $soc_rate = $this->bat_obj->getSettings()['charge_power']/$this->bat_obj->getCapacity()*100;
        
         $prices = $this->price_obj->get_ordered_price_slice($from, $to,true);
         foreach ($prices as $hour => $max_price){
@@ -307,7 +321,9 @@ class EnergyManager
         $prices = $this->price_obj->get_ordered_price_slice($from, $to);
 
         foreach ($prices as $hour => $price) {
-            if(($max_price-$price)<50)
+            if(($max_price-$price)<$this->bat_obj->getSettings()['charge_min_price_diff'])
+                break;
+            if($price>$this->bat_obj->getSettings()['charge_max_price'])
                 break;
             $factor = $this->hour_left($hour);
             $this->battery_restrictions[$hour] = 'active charge';
@@ -375,15 +391,14 @@ class EnergyManager
     private function find_active_discharge(float $soc, float $grid, string $type, string $from, string $to = null)
     {
         $prices = $this->price_obj->get_ordered_price_slice($from, $to, true);
-        $bat_settings = $this->bat_obj->getSettings();
 
-        $soc_rate = $bat_settings[$type . '_soc_rate'];
+        $soc_rate = $this->bat_obj->getSettings()[$type . '_soc_rate'];
         foreach ($prices as $hour => $price) {
             if ($type == 'md') {
-                if (($price - $this->price_obj->getMin_today()) < $bat_settings[$type . '_min_price'])
+                if (($price - $this->price_obj->getMin_today()) < $this->bat_obj->getSettings()[$type . '_min_price'])
                     break; //no discharge below e.g. 80 €/MWh
             } else {
-                if (($price - $this->price_obj->getMin_tomorrow()) < $bat_settings[$type . '_min_price'])
+                if (($price - $this->price_obj->getMin_tomorrow()) < $this->bat_obj->getSettings()[$type . '_min_price'])
                     break;
                 if ($this->pv[$hour] > 1.5)
                     continue;
@@ -396,9 +411,9 @@ class EnergyManager
             $this->battery_flow[$hour] = -$this->soc2kwh($soc_rate);
             $this->grid[$hour] = -$this->battery_flow[$hour] + $this->grid_flow_without_battery($hour);
             $grid -= $this->grid[$hour] * $factor;
-            if ($grid < $bat_settings['min_grid'])
+            if ($grid < $this->bat_obj->getSettings()['min_grid'])
                 break;
-            if ($soc < $bat_settings[$type . '_min_soc'])
+            if ($soc < $this->bat_obj->getSettings()[$type . '_min_soc'])
                 break;
         }
         return $soc;
@@ -473,13 +488,12 @@ class EnergyManager
         $this->battery_restrictions = [];
         $this->grid = [];
         $soc = $this->bat_obj->getSOC(); //Current value
-        $bat_settings = $this->bat_obj->getSettings();
 
         //We are during the day with pv production
         if ($night_start > $day_start) {
             $grid = $this->find_charge($soc, $day_start, $night_start);
             //Active discharge during highes prices in the morning
-            if ($soc > $bat_settings['md_min_soc'] && $grid > $bat_settings['min_grid'] && $dt->format('H') < '10') {
+            if ($soc > $this->bat_obj->getSettings()['md_min_soc'] && $grid > $this->bat_obj->getSettings()['min_grid'] && $dt->format('H') < '10') {
                 $soc_moring = $this->find_active_discharge($soc, $grid, 'md', $dt->format(DATE_H), $dt->format('Y-m-d 10'));
                 //second run! -- recheck for timeslots to charge
                 $this->find_charge($soc_moring, $dt->format('Y-m-d 10'), $night_start);
@@ -505,8 +519,8 @@ class EnergyManager
         [$soc_moring, $grid] = $this->find_no_discharge($soc, $night_start, $night_end);
         //2. Active Discharge during highest prices in the evening
         if (
-            ($prod_tomorrow - $cons_tomorrow) > $bat_settings['min_grid'] &&
-            $soc_moring > $bat_settings['ed_min_soc']
+            ($prod_tomorrow - $cons_tomorrow) > $this->bat_obj->getSettings()['min_grid'] &&
+            $soc_moring > $this->bat_obj->getSettings()['ed_min_soc']
         ) {
             $soc_moring = $this->find_active_discharge($soc, $prod_tomorrow - $cons_tomorrow, 'ed', $night_start, $night_end);
         }
@@ -516,7 +530,7 @@ class EnergyManager
 
         // Tomorrow 
         // $dt is now the timestamp of tomorrow morning
-        if (($prod_tomorrow - $cons_tomorrow) < $bat_settings['min_grid']) {
+        if (($prod_tomorrow - $cons_tomorrow) < $this->bat_obj->getSettings()['min_grid']) {
             $this->find_no_discharge($soc, $night_end);
         } else {
             $grid = $this->find_charge($soc, $night_end);
@@ -527,7 +541,6 @@ class EnergyManager
         $this->save_charge_plan($dt, $tomorrow->format('Y-m-d 24'), $soc);
 
         //TODO: Move heat pump to feed in hours/cheap hours
-        //TODO: Plan active charge when demand exceeds production
 
 
         //Table output for debugging

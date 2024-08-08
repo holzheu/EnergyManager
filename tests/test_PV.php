@@ -1,6 +1,6 @@
 <?php
 
-require_once(dirname(__FILE__) ."/../EnergyManager/PV.php");
+require_once (dirname(__FILE__) . "/../EnergyManager/PV.php");
 
 
 $pv = new PV_Solarprognose([

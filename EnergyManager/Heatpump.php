@@ -1,12 +1,30 @@
 <?php
+/**
+ * Heatpump classes
+ * 
+ */
+
 
 require_once(dirname(__FILE__) ."/Device.php");
 
+/**
+ * Abstract Heatpump class
+ */
 abstract class Heatpump extends Device {
+
+    /**
+     * get electricity demand of heat pump as
+     * a function of temperature
+     * @param mixed $temp temperatur
+     * @return float electricity demand (kw)
+     */
     abstract public function getKw($temp);
 }
 
-
+/**
+ * Simple Heatpump with quadratic equation for
+ * electic power calculation
+ */
 class Heatpump_quadratic extends Heatpump{
     public function __construct($settings) {
         $defaults = [
@@ -16,7 +34,7 @@ class Heatpump_quadratic extends Heatpump{
             "quad_coef" => null,
             "refresh" => 3600 * 3
         ];
-        $this->settings = $this->check_settings($settings, $defaults, "api.open-meteo.com");
+        $this->settings = $this->check_settings($settings, $defaults);
        
     }
 

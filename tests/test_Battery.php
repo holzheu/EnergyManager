@@ -1,10 +1,10 @@
 <?php
 
-require_once(dirname(__FILE__) ."/../EnergyManager/Battery.php");
+require_once (dirname(__FILE__) . "/../EnergyManager/Battery.php");
 
 $bat = new Battery_Dummy([
-    'kwh'=>10,
-    'soc'=>50
+    'kwh' => 10,
+    'soc' => 50
 ]);
 echo $bat->getStatus();
 

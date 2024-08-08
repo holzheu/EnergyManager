@@ -1,13 +1,21 @@
 <?php
+/**
+ * Price classes
+ * 
+ */
+
 require_once(dirname(__FILE__) ."/Device.php");
 
-
+/**
+ * Abstract price class
+ */
 abstract class Price extends Device {
     protected $price;
     protected $min_today;
     protected $max_today;
     protected $min_tomorrow;
     protected $max_tomorrow;
+
     /**
      * Returns a ordered price slice of the price Array
      * used for planing...
@@ -69,7 +77,9 @@ abstract class Price extends Device {
 }
 
 
-
+/**
+ * Implementation for Awattar
+ */
 class Price_Awattar extends Price {
 
     public function refresh(){

@@ -1,55 +1,111 @@
 <?php
-
+/**
+ * Battery Classes
+ * 
+ * 
+ */
 require_once(dirname(__FILE__) ."/Device.php");
+
+
+/**
+ * Abstract battery class
+ */
 abstract class Battery extends Device
 {
-    protected float $kwh;
-    protected float $soc;
+    protected float $kwh; //capacity of battery
+    protected float $soc; //current state of charge
+    
+    protected array $default_settings = [
+        "ed_min_soc" => 50,
+        "ed_soc_rate" => 20,
+        "ed_min_price" => 60,
+        "md_min_soc" => 15,
+        "md_min_price" => 50,
+        "md_soc_rate" => 15,
+        "min_grid" => 5,
+        "charge_power" => 0,
+        "charge_max_price" => 50,
+        "charge_min_price_diff" => 50
+    ];
+
+    /**
+     * Get current SOC (0-100)
+     * @return float 
+     */
     public function getSOC()
     {
         return $this->soc;
     }
+
+    /**
+     * Get capacity in kWh
+     * @return float 
+     */
     public function getCapacity()
     {
         return $this->kwh;
     }
 
+    /**
+     * Get string with current Battery status
+     * @return string
+     */
     public function getStatus(){
         $out= "Battery Status\n";
         $out.= sprintf("kWh: %.1f\n",$this->kwh);
         $out.= sprintf("SOC: %.0f\n",$this->soc);
         return $out;
     }
+
+    /**
+     * Set the mode of the battery
+     * 'no charge': Only discharge but no charge
+     * 'no discharge': Only charge but no discharge
+     * 'active discharge': Discharge battery with at least $kw
+     * 'active charge': Charge battery with $kw
+     * @param string $mode
+     * @param float $kw
+     * @return void
+     */
     abstract public function setMode(string $mode, float $kw = null);
 
 }
 
-
+/**
+ * Dummy Battery Class for testing
+ */
 class Battery_Dummy extends Battery
 {
+    /**
+     * Constructor
+     * @param array $settings
+     */
     public function __construct(array $settings)
     {
-        $defaults = [
+        $defaults = array_merge($this->default_settings, 
+        [
             "kwh" => null,
-            "soc" => null,
-            "ed_min_soc" => 50,
-            "ed_soc_rate" => 20,
-            "ed_min_price" => 60,
-            "md_min_soc" => 15,
-            "md_min_price" => 50,
-            "md_soc_rate" => 15,
-            "min_grid" => 5,
-            "charge_power" => 0,
-            "charge_min_price" => 50
-        ];
-        $this->settings = $this->check_settings($settings, $defaults, "BatterySettings");
+            "soc" => null
+        ]);
+        $this->settings = $this->check_settings($settings, $defaults);
         $this->kwh = $this->settings['kwh'];
         $this->soc = $this->settings['soc'];
     }
 
+    /**
+     * Implementation of refresh method
+     * @return bool
+     */
     public function refresh(){
         return true;
     }
+
+    /**
+     * Implementation of setMode method
+     * @param mixed $mode
+     * @param mixed $kw
+     * @return void
+     */
     public function setMode($mode, $kw = null)
     {
 
@@ -62,29 +118,28 @@ require_once 'PHPModbus/ModbusMasterTcp.php';
 class Battery_Kostal_Plenticore_Plus extends Battery
 {
     private ModbusMasterTcp $modbus; //phpmodbus Object
-    private int $error_count;
+    private int $error_count; //error count
 
-    private array $status;
-    private float $last_write=0;
+    private array $status; //array with battery values read via modbusTCP
+    private float $last_write=0; //Last write
+
+    /**
+     * Constructor
+     * @param array $settings
+     */
     public function __construct(array $settings)
     {
-        $defaults = [
+        $defaults = array_merge($this->default_settings, 
+        [
             "ip" => null,
-            "plant_id" => 71,
-            "ed_min_soc" => 50,
-            "ed_soc_rate" => 20,
-            "ed_min_price" => 60,
-            "md_min_soc" => 15,
-            "md_min_price" => 50,
-            "md_soc_rate" => 15,
-            "min_grid" => 5,
-            "charge_power" => 0,
-            "charge_min_price" => 50
-        ];
-        $this->settings = $this->check_settings($settings, $defaults, "BatterySettings");
+            "plant_id" => 71
+        ]);
+
+        $this->settings = $this->check_settings($settings, $defaults);
 
         $this->modbus = new ModbusMasterTcp($this->settings['ip'], "1502");
         $this->kwh = 0;
+        //read capacity
         while (!$this->kwh) {
             try {
                 // FC 3
@@ -101,6 +156,10 @@ class Battery_Kostal_Plenticore_Plus extends Battery
         fwrite(STDOUT, date('Y-m-d H:i:s') . ' ' . "EnergyManager: Successfully set battery with ip $settings[ip] and " . $this->kwh . " kWh\n");
     }
 
+    /**
+     * Implementation of refresh method
+     * @return bool
+     */
     public function refresh()
     {
         $register = <<<REGISTER
@@ -210,7 +269,13 @@ REGISTER;
 
     }
 
-
+    /**
+     * Implemation of refresh method
+     * @param mixed $mode
+     * @param mixed $kw
+     * @throws \Exception 
+     * @return void
+     */
     public function setMode($mode, $kw = null)
     {
         if(! is_null($kw)) $kw= -$kw; //change sign to fitt Kostal 
