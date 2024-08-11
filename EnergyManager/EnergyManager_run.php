@@ -64,7 +64,7 @@ while (true) {
         }
         fwrite(STDOUT, "\n");
         $dt->modify("+1 day");
-        $day_ahead = $manager->get_planning_info($dt->format(DATE_H));
+        $day_ahead = $manager->get_planning_info($dt->getTimestamp());
         foreach ($day_ahead as $key => $value) {
             $values[$key . "_dayahead"] = $value;
         }

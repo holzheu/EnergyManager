@@ -197,14 +197,14 @@ class EnergyManager
      * @param float $hour
      * @return float
      */
-    private function consumption(string $hour)
+    private function consumption(float $hour)
     {
         $hour=$this->full_hour($hour);
         return $this->house[$hour] + ($this->bev[$hour] ?? 0) + ($this->heatpump[$hour] ?? 0);
     }
 
 
-    private function calc_gridflow(string $hour)
+    private function calc_gridflow(float $hour)
     {
         $hour=$this->full_hour($hour);
         $this->grid[$hour] = $this->grid_flow_without_battery($hour) - $this->battery_flow[$hour];
@@ -215,7 +215,7 @@ class EnergyManager
      * @param float $hour
      * @return float
      */
-    private function grid_flow_without_battery(string $hour)
+    private function grid_flow_without_battery(float $hour)
     {
         $hour=$this->full_hour($hour);
         return $this->pv[$hour] - $this->consumption($hour);

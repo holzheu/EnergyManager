@@ -36,6 +36,6 @@ echo $manager->plan();
 $manager = new EnergyManager($pv, $bat, $price, $house2, $bev, $hp, $temp);
 echo $manager->plan();
 
-
+print_r($manager->get_planning_info());
 
 
