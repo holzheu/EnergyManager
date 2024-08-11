@@ -478,13 +478,16 @@ class EnergyManager
         $this->battery_restrictions = [];
         $this->grid = [];
         $soc = $this->bat_obj->getSOC(); //Current value
+        $this->save_charge_plan($now, $now_plus_12h, $soc); //Save current plan to get min 
+        $min_soc=min($this->battery);
+
         $dt = new DateTime();
         if (($prod - $cons) > $this->bat_obj->getSettings()['min_grid']) {
             $this->find_no_charge($soc, $now, $now_plus_12h);
             if ($dt->format('H') < '11' && $dt->format('H') > '05')
-                $this->find_active_discharge($soc, $prod - $cons, 'md', $now, $now_plus_12h);
+                $this->find_active_discharge($min_soc, $prod - $cons, 'md', $now, $now_plus_12h);
             elseif ($dt->format('H') > '11' || $dt->format('H') < '05')
-                $this->find_active_discharge($soc, $prod - $cons, 'ed', $now, $now_plus_12h);
+                $this->find_active_discharge($min_soc, $prod - $cons, 'ed', $now, $now_plus_12h);
         } elseif (($cons - $prod) > $this->bat_obj->getSettings()['min_grid']) {
             $this->find_no_discharge($soc, $now, $now_plus_12h);
             $this->find_active_charge($soc, $cons - $prod, $now, $now_plus_12h);
