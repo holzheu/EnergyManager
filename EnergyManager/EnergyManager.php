@@ -1,14 +1,6 @@
 <?php
 /**
- * Battery Manager for Kostal Plenticore Plus
- * 
- * uses api from solarprognose.de to get an estimate of the pv production
- * uses api from awattar.de to get price information
- * uses api from api.open-meteo.com to get temperature data
- * 
- * BEV is a DIY-device 
- * 
- * The battery of the inverter is controlled via modbustcp
+ * Energy Manager 
  * 
  * @author Stefan Holzheu <stefan.holzheu@uni-bayreuth.de>
  * 
@@ -37,7 +29,7 @@ class EnergyManager
     private $pv = []; //Array with estimated PV-production in kWh per hour
     private $price = []; //Array with prices in €/MWh per hour
     private $bev = [];  //Array with estimated BEV consumption in kWh per hour
-    private $battery = []; //Array with SOC hours
+    private $battery = []; //Array with SOC per hours
     private $battery_flow = []; //Array with battery flow in kWh (+ charge battery, - discharge battery)
     private $battery_restrictions = []; //Array with restrictions
     private $battery_active_flow = []; //Array with battery active flows (+ charge battery, - discharge)
@@ -46,6 +38,7 @@ class EnergyManager
     private $house = []; //Array with estimated house consumption in kWh per hour
     private $heatpump = []; //Array with estimated heat pump consumption in kWh per hour
 
+    //Objects 
     private PV $pv_obj;
     private Battery $bat_obj;
     private BEV $bev_obj;
@@ -72,6 +65,11 @@ class EnergyManager
     }
 
 
+    /**
+     * Returns the timestamp of the full hour
+     * @param float $time
+     * @return int
+     */
     private function full_hour(float $time): int {
         return (int) floor($time/3600)*3600;
     }
@@ -464,7 +462,6 @@ class EnergyManager
 
         $prod = 0;
         $cons = 0;
-        $dt = new DateTime();
         while ($hour < $now_plus_24h) {
             $this->house[$hour] = $this->house_obj->getKw($hour);
             if (!isset($this->pv[$hour]))
@@ -481,6 +478,7 @@ class EnergyManager
         $this->battery_restrictions = [];
         $this->grid = [];
         $soc = $this->bat_obj->getSOC(); //Current value
+        $dt = new DateTime();
         if (($prod - $cons) > $this->bat_obj->getSettings()['min_grid']) {
             $this->find_no_charge($soc, $now, $now_plus_12h);
             if ($dt->format('H') < '11' && $dt->format('H') > '05')
@@ -494,7 +492,6 @@ class EnergyManager
         $this->save_charge_plan($now, $now_plus_24h, $soc);
 
         //Table output for debugging
-        $dt = new DateTime();
         $table = "Time: " . $dt->format('Y-m-d H:i:s') . "\n";
         $table .= "   Date       Price PV    BEV   House HP    Bat   Grid  Bat   Temp  Restr.\n";
         $table .= "  Y-m-d H     €/MWh kWh   kWh   kWh   kWh   kWh   kWh   %     °C\n";
@@ -559,9 +556,8 @@ class EnergyManager
 
 
     /**
-     * Run-Function... refreshes plan and runs commands
-     * Switches on BEV charger
-     * Runs commands on battery via modbusTCP
+     * Run-Function... refreshes plan and 
+     * runs commands on BEV and battery
      * 
      * @return boolean
      */
