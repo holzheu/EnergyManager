@@ -59,8 +59,8 @@ class Temp_OpenMeteo extends Temp {
         for ($i = 0; $i < count($json['hourly']['time']); $i++) {
             $dt = DateTime::createFromFormat('Y-m-d\\TH:i', $json['hourly']['time'][$i], new DateTimeZone('GMT'));
             $dt->setTimezone(new DateTimeZone('Europe/Berlin'));
-            $this->hourly[$dt->format(DATE_H)] = $json['hourly']['temperature_2m'][$i];
-            $mean += $this->hourly[$dt->format(DATE_H)];
+            $this->hourly[$dt->getTimestamp()] = $json['hourly']['temperature_2m'][$i];
+            $mean += $this->hourly[$dt->getTimestamp()];
             if ($i % 24 == 23) {
                 $dt->modify('-12 hours');
                 $this->daily[$dt->format('Y-m-d')] = $mean / 24;

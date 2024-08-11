@@ -37,7 +37,7 @@ class PV_Dummy extends PV {
             if(! $diff) $diff = date_diff($dt, $today);
             $dt->modify($diff->format("%R%a days"));
             $dt->modify("+1 day");
-            $pv[$dt->format(DATE_H)] = $value[0] ;
+            $pv[$dt->getTimestamp()] = $value[0] ;
 
         }
         $this->production = $pv;
@@ -101,20 +101,12 @@ class PV_Solarprognose extends PV {
         }
 
 
-        $pv = [];
+        $this->production=[];
         foreach ($json['data'] as $time => $value) {
             $dt->setTimestamp($time);
             $dt->modify("-1 hour");
-            $pv[$dt->format(DATE_H)] = $value[0] * $this->settings['factor'];
+            $this->production[$dt->getTimestamp()] = $value[0] * $this->settings['factor'];
         }
-
-        $dt = new DateTime();
-        $dt->modify("+1 day");
-        if (!isset($pv[$dt->format('Y-m-d 12')])) {
-            fwrite(STDERR, date('Y-m-d H:i:s') . ' ' . "EnergyManager: solarprognose invalid data\n");
-            return false;
-        }
-        $this->production = $pv;
 
         if($url != $cache_file){
            $fp = fopen($cache_file, "w");

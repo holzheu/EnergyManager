@@ -12,7 +12,7 @@ abstract class House extends Device {
     /**
      * Get electricity demand of the house
      * without heatpump and bev
-     * @param mixed $hour 
+     * @param float $hour 
      * @return float electricity demand (kW)
      */
     abstract public function getKw($hour);

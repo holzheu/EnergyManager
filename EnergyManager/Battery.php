@@ -281,8 +281,7 @@ REGISTER;
         if(! is_null($kw)) $kw= -$kw; //change sign to fitt Kostal 
         $current_kw = $this->status['Actual battery charge (-) / discharge (+) current'] * $this->status['Battery voltage']/1000;
         $current_grid = $this->status['Total active power (powermeter)']/1000;
-        $dt = new DateTime();
-        $external_active = ($dt->getTimestamp() - $this->last_write) < 10;
+        $external_active = (time() - $this->last_write) < 10;
         switch ($mode) {
             case 'active discharge':
                 if ($current_grid > 100) { //more demand than discharge
@@ -337,7 +336,7 @@ REGISTER;
         }
 
         if (!is_null($kw)) {
-            $this->last_write = $dt->getTimestamp();
+            $this->last_write = time();
             try {
                 // FC 16
                 $recData = $this->modbus->writeMultipleRegister($this->settings['plant_id'], 1034, [$kw*1000], ['FLOAT']);

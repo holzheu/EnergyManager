@@ -34,11 +34,11 @@ $manager = new EnergyManager($pv, $bat, $price, $house, $bev, $hp, $temp);
 
 require_once 'BayEOSGatewayClient.php';
 
-//Configuration
+//Configuration for BayEOS
 $path = '/tmp/EnergyManager';
 $name = "EnergyManager";
-$url = "http://192.168.2.108/gateway/frame/saveFlat";
-$options = array('user' => 'import');
+$url = "http://".BayEOS_IP."/gateway/frame/saveFlat";
+$options = array('user' => BayEOS_USER);
 
 //Create a BayEOSSimpleClient
 //Note: This already forks the sender process

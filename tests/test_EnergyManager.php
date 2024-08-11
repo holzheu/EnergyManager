@@ -17,6 +17,7 @@ $bev = new BEV_Dummy([
     'max_kw' => 3
 ]);
 $house = new House_constant(['kwh_per_day' => 25]);
+$house2 = new House_constant(['kwh_per_day' => 5]);
 $price = new Price_Awattar();
 $hp = new Heatpump_quadratic([
     "lin_coef" => 0.017678,
@@ -30,4 +31,11 @@ $temp = new Temp_OpenMeteo([
 //create manager
 $manager = new EnergyManager($pv, $bat, $price, $house, $bev, $hp, $temp);
 echo $manager->plan();
-print_r($manager->get_planning_info());
+
+
+$manager = new EnergyManager($pv, $bat, $price, $house2, $bev, $hp, $temp);
+echo $manager->plan();
+
+
+
+
