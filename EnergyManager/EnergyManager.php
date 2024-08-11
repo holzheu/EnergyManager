@@ -411,10 +411,10 @@ class EnergyManager
 
         foreach ($prices as $hour => $price) {
             if ($type == 'md') {
-                if (($price - $this->price_obj->getMin(12)) < $this->bat_obj->getSettings()[$type . '_min_price'])
+                if (($price - $this->price_obj->getMin(24)) < $this->bat_obj->getSettings()[$type . '_min_price'])
                     break; //no discharge below e.g. 80 €/MWh
             } else {
-                if (($price - $this->price_obj->getMin(12)) < $this->bat_obj->getSettings()[$type . '_min_price'])
+                if (($price - $this->price_obj->getMin(24)) < $this->bat_obj->getSettings()[$type . '_min_price'])
                     break;
                 if ($this->pv[$hour] > 1.5)
                     continue;

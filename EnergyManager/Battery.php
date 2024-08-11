@@ -118,7 +118,7 @@ require_once 'PHPModbus/ModbusMasterTcp.php';
 class Battery_Kostal_Plenticore_Plus extends Battery
 {
     private ModbusMasterTcp $modbus; //phpmodbus Object
-    private int $error_count; //error count
+    private int $error_count=0; //error count
 
     private array $status; //array with battery values read via modbusTCP
     private float $last_write=0; //Last write
@@ -284,12 +284,12 @@ REGISTER;
         $external_active = (time() - $this->last_write) < 10;
         switch ($mode) {
             case 'active discharge':
-                if ($current_grid > 100) { //more demand than discharge
+                if ($current_grid > 0.1) { //more demand than discharge
                     if ($current_kw > $kw)
                         $kw = $current_kw;
                     $kw += $current_grid; //increase discharge to meet demand
                 } elseif (
-                    abs($current_grid) < 100 && $current_kw > $kw
+                    abs($current_grid) < 0.1 && $current_kw > $kw
                 ) {
                     $kw = $current_kw; //keep increased discharge
                 }
@@ -316,7 +316,7 @@ REGISTER;
                 break;
             case 'no charge':
                 $kw = 0;
-                if ($external_active && $current_grid > 100)
+                if ($external_active && $current_grid > 0.1)
                     $rate = null; //more demand than production -> disable external battery management
                 if (!$external_active && $current_kw > 0)
                     $kw = null; //still more demand than production -> keep external battery manangement disabled   
@@ -326,7 +326,7 @@ REGISTER;
             case 'no discarge':
                 $kw = 0;
                 if($external_active && $current_grid < 0) $kw = null; //Grid feed in --- charge battery instead
-                if(! $external_active && $current_kw < -50) $kw = null; //still less demand then production
+                if(! $external_active && $current_kw < -0.05) $kw = null; //still less demand then production
                 break;
             case 'active charge':
                 break;
