@@ -25,6 +25,7 @@ define("HOUSE_OK", 0x20);
 define("BEV_OK", 0x40);
 class EnergyManager
 {
+    private float $time; //Time variable... helpful for debugging
     private $planing_status = BAT_OK | PV_OK | PRICE_OK | TEMP_OK | HEATPUMP_OK | BEV_OK;
     private $pv = []; //Array with estimated PV-production in kWh per hour
     private $price = []; //Array with prices in €/MWh per hour
@@ -70,8 +71,9 @@ class EnergyManager
      * @param float $time
      * @return int
      */
-    private function full_hour(float $time): int {
-        return (int) floor($time/3600)*3600;
+    private function full_hour(float $time): int
+    {
+        return (int) floor($time / 3600) * 3600;
     }
 
     /**
@@ -96,8 +98,8 @@ class EnergyManager
             $this->bev_obj->refresh();
             $soc = $this->bev_obj->getSoc();
             if ($this->bev_obj->getChargeTime() > 0.001 && $soc < $this->bev_obj->getMaxSoc()) {
-                $end = time()+$this->bev_obj->getChargeTime()*3600;
-                $start=floor(time()/3600)*3600;
+                $end = $this->time() + $this->bev_obj->getChargeTime() * 3600;
+                $start = $this->full_hour($this->time());
                 /**
                  * Four runs:
                  * 1. PV + Minimum price -> min in time
@@ -109,7 +111,7 @@ class EnergyManager
                     //check for prices
                     if ($j < 2) {
                         $limit = $this->bev_obj->getMinSoc();
-                        $prices = $this->price_obj->get_ordered_price_slice($start,$end);
+                        $prices = $this->price_obj->get_ordered_price_slice($start, $end);
                     } else {
                         $limit = $this->bev_obj->getMaxSoc();
                         $prices = $this->price_obj->get_ordered_price_slice($start);
@@ -156,7 +158,7 @@ class EnergyManager
         if (!is_null($this->hp_obj)) {
             if ($this->hp_obj->refresh())
                 $this->planing_status &= ~HEATPUMP_OK;
-            $dt=new DateTime();
+            $dt = new DateTime();
             $this->heatpump = [];
             $daily = $this->temp_obj->getDaily();
             foreach ($this->temp_obj->getHourly() as $hour => $value) {
@@ -174,6 +176,17 @@ class EnergyManager
 
     }
 
+    /**
+     * Returns the current time of the EnergeyManager
+     * normally this is just time()
+     * But for debugging it is helpful to calculate the plan for
+     * timestamps different from time()
+     * @return float|int
+     */
+    private function time(){
+        if( $this->time === null) return time();
+        return $this->time;
+    }
 
     /**
      * Gives a factor of what is left from the hour (0-1)
@@ -181,9 +194,9 @@ class EnergyManager
      */
     private function hour_left(float $hour)
     {
-        $hour=$this->full_hour($hour);
-        $now=time();
-        $factor = (3600 - ($now-$hour)) / 3600;
+        $hour = $this->full_hour($hour);
+        $now = $this->time();
+        $factor = (3600 - ($now - $hour)) / 3600;
         if ($factor < 0)
             $factor = 0;
         if ($factor > 1)
@@ -199,14 +212,14 @@ class EnergyManager
      */
     private function consumption(float $hour)
     {
-        $hour=$this->full_hour($hour);
+        $hour = $this->full_hour($hour);
         return $this->house[$hour] + ($this->bev[$hour] ?? 0) + ($this->heatpump[$hour] ?? 0);
     }
 
 
     private function calc_gridflow(float $hour)
     {
-        $hour=$this->full_hour($hour);
+        $hour = $this->full_hour($hour);
         $this->grid[$hour] = $this->grid_flow_without_battery($hour) - $this->battery_flow[$hour];
     }
 
@@ -217,7 +230,7 @@ class EnergyManager
      */
     private function grid_flow_without_battery(float $hour)
     {
-        $hour=$this->full_hour($hour);
+        $hour = $this->full_hour($hour);
         return $this->pv[$hour] - $this->consumption($hour);
     }
 
@@ -251,8 +264,8 @@ class EnergyManager
      */
     private function save_charge_plan(float $from, float $to, float $soc)
     {
-        $hour=$this->full_hour($from);
-        $to=$this->full_hour($to);
+        $hour = $this->full_hour($from);
+        $to = $this->full_hour($to);
         while ($hour < $to) {
             $soc += $this->kwh2soc($this->battery_flow[$hour]) * $this->hour_left($hour);
             $this->grid[$hour] ??= 0;
@@ -273,7 +286,7 @@ class EnergyManager
                 if (($this->battery_restrictions[$hour] ?? '') == 'no charge')
                     unset($this->battery_restrictions[$hour]);
             }
-            $hour+=3600;
+            $hour += 3600;
         }
         return $soc;
     }
@@ -404,14 +417,16 @@ class EnergyManager
     private function find_active_discharge(float $soc, float $grid, string $type, float $from, float $to = null)
     {
         $prices = $this->price_obj->get_ordered_price_slice($from, $to, true);
-
         $soc_rate = $this->bat_obj->getSettings()[$type . '_soc_rate'];
         if ($soc_rate <= 0)
             return $soc; //No active discharge
 
+        if ($soc < $this->bat_obj->getSettings()[$type . '_min_soc'])
+            return $soc;
+
         foreach ($prices as $hour => $price) {
             if ($type == 'md') {
-                if (($price - $this->price_obj->getMin(24)) < $this->bat_obj->getSettings()[$type . '_min_price'])
+                if (($price - $this->price_obj->getMin(12)) < $this->bat_obj->getSettings()[$type . '_min_price'])
                     break; //no discharge below e.g. 80 €/MWh
             } else {
                 if (($price - $this->price_obj->getMin(24)) < $this->bat_obj->getSettings()[$type . '_min_price'])
@@ -437,12 +452,19 @@ class EnergyManager
 
     /**
      * Performs the planning for the next 24 hours
+     * Normally plan is called without argument. 
+     * Then the planning is carried out by the current time
      * @return bool|string
      */
-    public function plan()
+    public function plan($time=null)
     {
+        if ($time === null){
+            $time = time();
+            unset($this->time);
+        }
+        else $this->time=$time;
         //Avoid planing 10 s before new hour
-        if ($this->hour_left(time()) < 10 / 3600)
+        if ($this->hour_left($time) < 10 / 3600)
             return false;
 
         //Refresh all objects
@@ -455,14 +477,12 @@ class EnergyManager
         }
 
         // Calculate expected Production/Consumption the next 24 hours
-        $now = $this->full_hour(time());
-        $now_plus_12h = $now+12*3600;
-        $now_plus_24h = $now+24*3600;
-        $hour=$now;
+        $now = $this->full_hour($time);
+        $hour = $now;
 
         $prod = 0;
         $cons = 0;
-        while ($hour < $now_plus_24h) {
+        while ($hour < $now + 24 * 3600) {
             $this->house[$hour] = $this->house_obj->getKw($hour);
             if (!isset($this->pv[$hour]))
                 $this->pv[$hour] = 0;
@@ -478,21 +498,23 @@ class EnergyManager
         $this->battery_restrictions = [];
         $this->grid = [];
         $soc = $this->bat_obj->getSOC(); //Current value
-        $this->save_charge_plan($now, $now_plus_12h, $soc); //Save current plan to get min 
-        $min_soc=min($this->battery);
+        $this->save_charge_plan($now, $now + 12 * 3600, $soc); //Save current plan to get min soc 
+        $min_soc = min($this->battery);
+        $min_soc = min($soc, $min_soc);
 
         $dt = new DateTime();
+        $dt->setTimestamp($hour);
         if (($prod - $cons) > $this->bat_obj->getSettings()['min_grid']) {
-            $this->find_no_charge($soc, $now, $now_plus_12h);
-            if ($dt->format('H') < '11' && $dt->format('H') > '05')
-                $this->find_active_discharge($min_soc, $prod - $cons, 'md', $now, $now_plus_12h);
-            elseif ($dt->format('H') > '11' || $dt->format('H') < '05')
-                $this->find_active_discharge($min_soc, $prod - $cons, 'ed', $now, $now_plus_12h);
+            $this->find_no_charge($soc, $now, $now + 12 * 3600);
+            if ($dt->format('H') < '11' && $dt->format('H') >= '05')
+                $this->find_active_discharge($min_soc, $prod - $cons, 'md', $now, $now + 6 * 3600);
+            elseif ($dt->format('H') >= '11' || $dt->format('H') < '05')
+                $this->find_active_discharge($min_soc, $prod - $cons, 'ed', $now, $now + 12 * 3600);
         } elseif (($cons - $prod) > $this->bat_obj->getSettings()['min_grid']) {
-            $this->find_no_discharge($soc, $now, $now_plus_12h);
-            $this->find_active_charge($soc, $cons - $prod, $now, $now_plus_12h);
+            $this->find_no_discharge($soc, $now, $now + 12 * 3600);
+            $this->find_active_charge($soc, $cons - $prod, $now, $now + 12 * 3600);
         }
-        $this->save_charge_plan($now, $now_plus_24h, $soc);
+        $this->save_charge_plan($now, $now + 24 * 3600, $soc);
 
         //Table output for debugging
         $table = "Time: " . $dt->format('Y-m-d H:i:s') . "\n";
@@ -540,9 +562,9 @@ class EnergyManager
     public function get_planning_info($hour = null)
     {
         if (is_null($hour)) {
-            $hour=time();
+            $hour = time();
         }
-        $hour=$this->full_hour($hour);
+        $hour = $this->full_hour($hour);
         return array(
             'PV' => $this->pv[$hour] ?? NAN,
             'Bat' => $this->battery[$hour] ?? NAN,
@@ -571,7 +593,7 @@ class EnergyManager
         if ($this->planing_status)
             return false;
 
-        $hour=$this->full_hour(time());
+        $hour = $this->full_hour(time());
         //Battery
         if (isset($this->battery_restrictions[$hour])) {
             $this->bat_obj->setMode($this->battery_restrictions[$hour], $this->battery_active_flow[$hour] ?? 0);

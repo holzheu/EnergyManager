@@ -135,11 +135,10 @@ class BEV_DIY extends BEV
 
     public function refresh()
     {
-        $dt = new DateTime();
-        if (($dt->getTimestamp() - $this->update) < $this->settings['refresh'])
+        if ((time() - $this->update) < $this->settings['refresh'])
             return true;
 
-        $this->update = $dt->getTimestamp();
+        $this->update = time();
         $json = file_get_contents("http://" . $this->settings['ip'] . "/status");
         if (!$json) {
             fwrite(STDERR, date('Y-m-d H:i:s') . ' ' . "EnergyManager: failed to read BEV\n");
@@ -155,13 +154,12 @@ class BEV_DIY extends BEV
 
     public function charge($kw, $duration = 1 / 30)
     {
-        $dt = new DateTime("");
         $json = file_get_contents(sprintf("http://%s/cmd?t=%.0f", $this->settings['ip'], $duration * 60));
         $charger = json_decode($json, true);
         if ($charger['status'] != 3)
             fwrite(STDERR, date('Y-m-d H:i:s') . ' ' . "EnergyManager: Failed to swich on BEV charger\n");
         else
-            $this->last_command = $dt->getTimestamp();
+            $this->last_command = time();
 
     }
 }
