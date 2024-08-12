@@ -25,7 +25,7 @@ define("HOUSE_OK", 0x20);
 define("BEV_OK", 0x40);
 class EnergyManager
 {
-    private float $time; //Time variable... helpful for debugging
+    private float $time = 0; //Time variable... helpful for debugging
     private $planing_status = BAT_OK | PV_OK | PRICE_OK | TEMP_OK | HEATPUMP_OK | BEV_OK;
     private $pv = []; //Array with estimated PV-production in kWh per hour
     private $price = []; //Array with prices in €/MWh per hour
@@ -184,7 +184,7 @@ class EnergyManager
      * @return float|int
      */
     private function time(){
-        if( $this->time === null) return time();
+        if( ! $this->time ) return time();
         return $this->time;
     }
 
@@ -460,7 +460,7 @@ class EnergyManager
     {
         if ($time === null){
             $time = time();
-            unset($this->time);
+            $this->time=0;
         }
         else $this->time=$time;
         //Avoid planing 10 s before new hour
