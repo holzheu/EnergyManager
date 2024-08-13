@@ -1,49 +1,7 @@
 <?php
-/**
- * PV classes
- */
 
-require_once(dirname(__FILE__) ."/Device.php");
+namespace EnergyManager\PV;
 
-
-/**
- * Abstract PV class
- */
-abstract class PV extends Device {
-    protected $production=[];
-
-    public function getProduction(){
-        return $this->production;
-    }
-
-}
-
-/**
- * Dummy PV class
- * 
- * Uses an old json file from solarprognose for a dummy prediction for today and tomorrow
- */
-class PV_Dummy extends PV {
-    public function refresh(){
-        $json_file = file_get_contents("solar.json");
-        $json = json_decode($json_file, true);
-        $pv = [];
-        $dt= new DateTime();
-        $today= DateTime::createFromFormat('Y-m-d H:i',$dt->format('Y-m-d 00:00'));
-        $diff =0;
-        foreach ($json['data'] as $time => $value) {
-            $dt->setTimestamp($time);
-            $dt->modify("-1 hour");
-            if(! $diff) $diff = date_diff($dt, $today);
-            $dt->modify($diff->format("%R%a days"));
-            $dt->modify("+1 day");
-            $pv[$dt->getTimestamp()] = $value[0] ;
-
-        }
-        $this->production = $pv;
-        return true;
-    }
-}
 
 /**
  * Implementation for solarprognose.de
@@ -51,7 +9,7 @@ class PV_Dummy extends PV {
  * You need a configured plant (plant_id) and
  * an access token
  */
-class PV_Solarprognose extends PV {
+class PvSolarprognose extends PV {
 
     public function __construct($settings) {
         $defaults = [
@@ -64,7 +22,7 @@ class PV_Solarprognose extends PV {
 
     }
     public function refresh(){
-        $dt = new DateTime();
+        $dt = new \DateTime();
         if (($dt->getTimestamp() - $this->update) < $this->settings['refresh'])
             return true;
         fwrite(STDOUT, date('Y-m-d H:i:s') . ' ' . "EnergyManager: refresh solarprognose " . ($dt->getTimestamp() - $this->update) . "\n");

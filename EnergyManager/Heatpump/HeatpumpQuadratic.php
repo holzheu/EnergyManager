@@ -1,31 +1,12 @@
 <?php
-/**
- * Heatpump classes
- * 
- */
-
-
-require_once(dirname(__FILE__) ."/Device.php");
-
-/**
- * Abstract Heatpump class
- */
-abstract class Heatpump extends Device {
-
-    /**
-     * get electricity demand of heat pump as
-     * a function of temperature
-     * @param mixed $temp temperatur
-     * @return float electricity demand (kw)
-     */
-    abstract public function getKw($temp);
-}
 
 /**
  * Simple Heatpump with quadratic equation for
  * electic power calculation
  */
-class Heatpump_quadratic extends Heatpump{
+
+namespace EnergyManager\Heatpump;
+class HeatpumpQuadratic extends Heatpump{
     public function __construct($settings) {
         $defaults = [
             "heating_limit" => 15,

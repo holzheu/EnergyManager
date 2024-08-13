@@ -1,8 +1,8 @@
 <?php
 
-require_once (dirname(__FILE__) . "/../EnergyManager/Price.php");
+require_once __DIR__."/../EnergyManager/EnergyManager.php";
 
-$price = new Price_Awattar();
+$price = new \EnergyManager\Price\PriceAwattar();
 
 $price->refresh();
 print_r($price->getPrice());

@@ -1,4 +1,7 @@
 <?php
+
+namespace EnergyManager;
+
 define("DATE_H", "Y-m-d H");
 
 abstract class Device

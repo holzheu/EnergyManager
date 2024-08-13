@@ -1,11 +1,12 @@
 <?php
 
-require_once (dirname(__FILE__) . "/../EnergyManager/PV.php");
+require_once __DIR__."/../EnergyManager/EnergyManager.php";
+require_once __DIR__."/../EnergyManager/secrets.php";
 
 
-$pv = new PV_Solarprognose([
-    'access_token' => '4ee984c60ff18c765b1141a066176273',
-    'plant_id' => 5068,
+$pv = new \EnergyManager\PV\PvSolarprognose([
+    'access_token' => Solarprognose_access_token,
+    'plant_id' => Solarprognose_plant_id,
     'factor' => 2
 ]);
 
@@ -13,7 +14,7 @@ $pv = new PV_Solarprognose([
 //print_r($pv->getProduction());
 
 
-$pv = new PV_Dummy();
+$pv = new \EnergyManager\PV\PvDummy();
 $pv->refresh();
 print_r($pv->getProduction());
 

@@ -1,13 +1,14 @@
 <?php
+require_once __DIR__."/../EnergyManager/EnergyManager.php";
+require_once __DIR__."/../EnergyManager/secrets.php";
 
-require_once(dirname(__FILE__) ."/../EnergyManager/BEV.php");
-require_once(dirname(__FILE__) ."/../EnergyManager/secrets.php");
-$bev = new BEV_Dummy();
+
+$bev = new \EnergyManager\BEV\BevDummy();
 $bev->refresh();
 echo $bev->getStatus();
 
 
-$bev = new BEV_DIY([
+$bev = new \EnergyManager\BEV\BevDIY([
     "ip"=>BEV_DIV_ip,
     'kwh'=>17.9,
     'kw'=>2.2

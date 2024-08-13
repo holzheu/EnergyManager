@@ -1,10 +1,10 @@
 <?php
 
-require_once (dirname(__FILE__) . "/../EnergyManager/Temp.php");
+require_once __DIR__."/../EnergyManager/EnergyManager.php";
 
-$temp = new Temp_OpenMeteo([
-    "latitude" => 50.0333,
-    "longitude" => 11.5667
+$temp = new \EnergyManager\Temp\TempOpenMeteo([
+    "latitude" => 50.8333,
+    "longitude" => 11.8367
 ]);
 
 $temp->refresh();

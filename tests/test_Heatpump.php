@@ -1,8 +1,8 @@
 <?php
 
-require_once (dirname(__FILE__) . "/../EnergyManager/Heatpump.php");
+require_once __DIR__."/../EnergyManager/EnergyManager.php";
 
-$hp = new Heatpump_quadratic([
+$hp = new \EnergyManager\Heatpump\HeatpumpQuadratic([
     "lin_coef" => 0.017678,
     "quad_coef" => 0.002755
 ]);

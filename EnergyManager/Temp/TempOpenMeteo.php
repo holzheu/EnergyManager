@@ -1,31 +1,10 @@
-<?php
-/**
- * Temperature forcast classes
- */
-require_once(dirname(__FILE__) ."/Device.php");
-
-/**
- * Abstract Temp class
- */
-abstract class Temp extends Device {
-
-    protected $hourly = [];
-    protected $daily = [];
-
-
-    public function getHourly(){
-        return $this->hourly;
-    }
-
-    public function getDaily(){
-        return $this->daily;
-    }
-}
-
+<?php 
 /**
  * Implementation for OpenMeto
  */
-class Temp_OpenMeteo extends Temp {
+
+namespace EnergyManager\Temp;
+class TempOpenMeteo extends Temp {
     public function __construct(array $settings = []) {
         $defaults = [
             "longitude" => null,
@@ -37,7 +16,7 @@ class Temp_OpenMeteo extends Temp {
     }
 
     public function refresh(){
-        $dt = new DateTime();
+        $dt = new \DateTime();
         if (($dt->getTimestamp() - $this->update) < $this->settings['refresh'])
             return true;
         $this->update = $dt->getTimestamp();
@@ -57,8 +36,8 @@ class Temp_OpenMeteo extends Temp {
         $this->daily = [];
         $mean = 0;
         for ($i = 0; $i < count($json['hourly']['time']); $i++) {
-            $dt = DateTime::createFromFormat('Y-m-d\\TH:i', $json['hourly']['time'][$i], new DateTimeZone('GMT'));
-            $dt->setTimezone(new DateTimeZone('Europe/Berlin'));
+            $dt = \DateTime::createFromFormat('Y-m-d\\TH:i', $json['hourly']['time'][$i], new \DateTimeZone('GMT'));
+            $dt->setTimezone(new \DateTimeZone('Europe/Berlin'));
             $this->hourly[$dt->getTimestamp()] = $json['hourly']['temperature_2m'][$i];
             $mean += $this->hourly[$dt->getTimestamp()];
             if ($i % 24 == 23) {
