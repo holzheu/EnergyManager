@@ -6,17 +6,17 @@ require_once __DIR__ . '/../EnergyManager/EnergyManager.php';
 //create objects
 $bat = new \EnergyManager\Battery\BatteryDummy([
     'kwh' => 10,
-    'soc' => 50,
+    'soc' => 90,
     'charge_power' => 1.5
 ]);
 $pv = new \EnergyManager\PV\PvDummy();
 $bev = new \EnergyManager\BEV\BevDummy([
     'kwh' => 30,
-    'soc' => 30,
+    'soc' => 90,
     'min_kw' => 1,
     'max_kw' => 3
 ]);
-$house = new \EnergyManager\House\HouseConstant(['kwh_per_day' => 25]);
+$house = new \EnergyManager\House\HouseConstant(['kwh_per_day' => 5]);
 $price = new \EnergyManager\Price\PriceAwattar();
 $hp = new \EnergyManager\Heatpump\HeatpumpQuadratic([
     "lin_coef" => 0.017678,
@@ -34,7 +34,7 @@ $manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house, $bev, $hp
 $dt= new DateTime();
 $dt->setTimestamp(floor($dt->getTimestamp() /3600)*3600);
 
-for( $i = 0; $i < 12; $i++ ){
+for( $i = 0; $i < 18; $i++ ){
     echo $manager->plan($dt->getTimestamp());
     $bat = new \EnergyManager\Battery\BatteryDummy([
         'kwh' => 10,

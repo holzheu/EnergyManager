@@ -7,13 +7,13 @@ require_once __DIR__ . '/../EnergyManager/EnergyManager.php';
 //create objects
 $bat = new \EnergyManager\Battery\BatteryDummy([
     'kwh' => 10,
-    'soc' => 50,
+    'soc' => 80,
     'charge_power' => 1.5
 ]);
 $pv = new \EnergyManager\PV\PvDummy();
 $bev = new \EnergyManager\BEV\BevDummy([
     'kwh' => 30,
-    'soc' => 70,
+    'soc' => 80,
     'min_kw' => 1,
     'max_kw' => 3
 ]);
