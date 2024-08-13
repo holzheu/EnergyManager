@@ -1,9 +1,7 @@
 <?php
-
 /**
  * Dummy Battery Class for testing
  */
-
 namespace EnergyManager\Battery;
 
 class BatteryDummy extends Battery

@@ -22,7 +22,7 @@ abstract class Device
             if (!isset($settings[$key]))
                 $settings[$key] = $value;
             if (is_null($settings[$key])) {
-                throw new Exception(get_called_class() . "[" . $key . "] must not be null");
+                throw new \Exception(get_called_class() . "[" . $key . "] must not be null");
             }
         }
         return $settings;
