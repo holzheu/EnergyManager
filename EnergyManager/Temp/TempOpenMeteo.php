@@ -6,12 +6,12 @@
 namespace EnergyManager\Temp;
 class TempOpenMeteo extends Temp {
     public function __construct(array $settings = []) {
-        $defaults = [
+        $this->defaults = [
             "longitude" => null,
             "latitude" => null,
             "refresh" => 3600 * 3
         ];
-        $this->settings = $this->check_settings($settings, $defaults);
+        $this->setSettings($settings);
        
     }
 

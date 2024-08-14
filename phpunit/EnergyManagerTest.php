@@ -19,24 +19,23 @@ class EnergyManagerTest extends \PHPUnit\Framework\TestCase
         $house = new \EnergyManager\House\HouseConstant(['kwh_per_day' => 25]);
         $house2 = new \EnergyManager\House\HouseConstant(['kwh_per_day' => 5]);
         $price = new \EnergyManager\Price\PriceAwattar();
-        $hp = new \EnergyManager\Heatpump\HeatpumpQuadratic([
-            "lin_coef" => 0.017678,
-            "quad_coef" => 0.002755
-        ]);
         $temp = new \EnergyManager\Temp\TempOpenMeteo([
             "latitude" => 50.8333,
             "longitude" => 11.8367
         ]);
-        
-        
+        $hp = new \EnergyManager\Heatpump\HeatpumpQuadratic([
+            "lin_coef" => 0.017678,
+            "quad_coef" => 0.002755
+        ], $temp);
+   
         
         //create manager
-        $manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house, $bev, $hp, $temp);
+        $manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house, $bev, $hp);
         $result= $manager->plan();
         $this->assertStringContainsString("Production", $result);
         
         
-        $manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house2, $bev, $hp, $temp);
+        $manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house2, $bev, $hp);
         $result = $manager->plan();
         $this->assertStringContainsString("Production", $result);
 

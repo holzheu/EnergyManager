@@ -18,13 +18,13 @@ class BevDIY extends BEV
 
     public function __construct($settings)
     {
-        $defaults = [
+        $this->defaults = [
             "ip" => null,
             'kwh' => null,
             'kw' => null,
             "refresh" => 30
         ];
-        $this->settings = $this->check_settings($settings, $defaults);
+        $this->setSettings($settings);
         $this->max_kw = $this->settings['kw'];
         $this->min_kw = $this->settings['kw'];
         $this->kwh = $this->settings['kwh'];

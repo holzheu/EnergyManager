@@ -12,13 +12,13 @@ namespace EnergyManager\PV;
 class PvSolarprognose extends PV {
 
     public function __construct($settings) {
-        $defaults = [
+        $this->defaults = [
             "access_token" => null,
             "plant_id" => null,
             "factor" => 1,
             "refresh" => 3600 * 3
         ];
-        $this->settings = $this->check_settings($settings, $defaults);
+        $this->setSettings($settings);
 
     }
     public function refresh(){

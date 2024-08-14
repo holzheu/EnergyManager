@@ -12,12 +12,12 @@ class BatteryDummy extends Battery
      */
     public function __construct(array $settings)
     {
-        $defaults = array_merge($this->default_settings, 
+        $this->defaults = array_merge(parent::$bat_defaults, 
         [
             "kwh" => null,
             "soc" => null
         ]);
-        $this->settings = $this->check_settings($settings, $defaults);
+        $this->setSettings($settings);
         $this->kwh = $this->settings['kwh'];
         $this->soc = $this->settings['soc'];
     }
@@ -28,6 +28,10 @@ class BatteryDummy extends Battery
      */
     public function refresh(){
         return true;
+    }
+
+    public function setSOC($soc){
+        $this->soc = $soc;
     }
 
     /**

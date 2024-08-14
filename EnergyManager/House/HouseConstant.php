@@ -10,10 +10,10 @@ namespace EnergyManager\House;
  */
 class HouseConstant extends House {
     public function __construct($settings) {
-        $defaults = [
+        $this->defaults = [
             "kwh_per_day" => null
         ];
-        $this->settings = $this->check_settings($settings, $defaults);
+        $this->setSettings($settings);
        
     }
 

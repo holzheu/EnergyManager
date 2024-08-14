@@ -1,7 +1,7 @@
 <?php
 
-require_once __DIR__."/../EnergyManager/EnergyManager.php";
-require_once __DIR__."/../EnergyManager/secrets.php";
+require_once __DIR__ . '/../EnergyManager/autoload.php';
+require_once __DIR__ . "/../EnergyManager/secrets.php";
 
 
 $pv = new \EnergyManager\PV\PvSolarprognose([

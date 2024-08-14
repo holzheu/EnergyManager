@@ -6,14 +6,14 @@ require_once __DIR__ .'/secrets.php';
 
 
 $price = new \EnergyManager\Price\PriceAwattar();
-$hp = new \EnergyManager\Heatpump\HeatpumpQuadratic([
-    "lin_coef" => 0.017678,
-    "quad_coef" => 0.002755
-]);
 $temp = new \EnergyManager\Temp\TempOpenMeteo([
     "latitude" => OpenMeteo_latitude,
     "longitude" => OpenMeteo_longitude
 ]);
+$hp = new \EnergyManager\Heatpump\HeatpumpQuadratic([
+    "lin_coef" => 0.017678,
+    "quad_coef" => 0.002755
+],$temp);
 $bev = new \EnergyManager\BEV\BevDIY([
     "ip" => BEV_DIV_ip,
     'kwh' => 17.9,
@@ -29,7 +29,7 @@ $house = new \EnergyManager\House\HouseConstant(['kwh_per_day' => 10]);
 $bat = new \EnergyManager\Battery\BatteryKostalByd(['ip' => Kostal_Plenticore_Plus_ip]);
 
 
-$manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house, $bev, $hp, $temp);
+$manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house, $bev, $hp);
 
 
 

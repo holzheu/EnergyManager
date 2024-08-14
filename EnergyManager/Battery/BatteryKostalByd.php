@@ -19,13 +19,13 @@ class BatteryKostalByd extends Battery
      */
     public function __construct(array $settings)
     {
-        $defaults = array_merge($this->default_settings, 
+        $this->defaults = array_merge(parent::$bat_defaults, 
         [
             "ip" => null,
             "plant_id" => 71
         ]);
 
-        $this->settings = $this->check_settings($settings, $defaults);
+        $this->setSettings($settings);
 
         $this->modbus = new \ModbusMasterTcp($this->settings['ip'], "1502");
         $this->kwh = 0;

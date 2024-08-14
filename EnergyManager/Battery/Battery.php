@@ -15,7 +15,7 @@ abstract class Battery extends \EnergyManager\Device
     protected float $kwh; //capacity of battery
     protected float $soc; //current state of charge
     
-    protected array $default_settings = [
+    protected static array $bat_defaults = [
         "ed_min_soc" => 50,
         "ed_soc_rate" => 20,
         "ed_min_price" => 60,
@@ -45,6 +45,27 @@ abstract class Battery extends \EnergyManager\Device
     {
         return $this->kwh;
     }
+
+    /**
+     * kWh to SOC
+     * @param mixed $kwh
+     * @return float
+     */
+    public function kwh2soc(float $kwh)
+    {
+        return $kwh / $this->kwh * 100;
+    }
+
+    /**
+     * SOC to kWh
+     * @param mixed $soc
+     * @return float
+     */
+    public function soc2kwh(float $soc)
+    {
+        return $soc / 100 * $this->kwh;
+    }
+
 
     /**
      * Get string with current Battery status

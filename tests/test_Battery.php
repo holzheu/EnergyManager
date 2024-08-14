@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__."/../EnergyManager/EnergyManager.php";
+require_once __DIR__ . '/../EnergyManager/autoload.php';
 
 $bat = new \EnergyManager\Battery\BatteryDummy([
     'kwh' => 10,

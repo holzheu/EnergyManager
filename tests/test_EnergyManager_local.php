@@ -1,10 +1,10 @@
 #!/usr/bin/php
 <?php
 
-require_once dirname(__FILE__) . '/../EnergyManager/EnergyManager.php';
+require_once __DIR__ . '/../EnergyManager/autoload.php';
 
 // Defines constants used to configure objects
-require_once dirname(__FILE__) . '/../EnergyManager/secrets.php';
+require_once __DIR__ . '/../EnergyManager/secrets.php';
 
 //create objects
 $bat = new \EnergyManager\Battery\BatteryKostalByd(['ip' => Kostal_Plenticore_Plus_ip]);
@@ -16,16 +16,17 @@ $bev = new \EnergyManager\BEV\BevDIY([
 ]);
 $house = new \EnergyManager\House\HouseConstant(['kwh_per_day' => 10]);
 $price = new \EnergyManager\Price\PriceAwattar();
-$hp = new \EnergyManager\Heatpump\HeatpumpQuadratic([
-    "lin_coef" => 0.017678,
-    "quad_coef" => 0.002755
-]);
 $temp = new \EnergyManager\Temp\TempOpenMeteo([
     "latitude" => OpenMeteo_latitude,
     "longitude" => OpenMeteo_longitude
 ]);
+$hp = new \EnergyManager\Heatpump\HeatpumpQuadratic([
+    "lin_coef" => 0.017678,
+    "quad_coef" => 0.002755
+], $temp);
+
 
 //Create Manager 
-$manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house, $bev, $hp, $temp);
+$manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house, $bev, $hp);
 echo $manager->plan();
 print_r($manager->get_planning_info());

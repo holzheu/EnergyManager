@@ -15,36 +15,70 @@ abstract class BEV extends \EnergyManager\Device
     protected $max_soc = 85;
     protected $charge_time = 2; //hours
 
+    protected $plan = [];
+
 
     abstract public function charge($kw, $duration);
 
-    public function getKWh()
-    {
-        return $this->kwh;
+    public function plan(\EnergyManager\PV\PV $pv_obj, \EnergyManager\Price\Price $price_obj){
+        if(! $this->refresh()) return false;
+        $time= $this->time();
+        $this->plan=[];
+        $soc = $this->soc;
+        $pv=$pv_obj->getProduction();
+        if ($this->charge_time > 0.001 && $soc < $this->max_soc) {
+            $end = $time + $this->charge_time * 3600;
+            $start = floor($time/3600)*3600;
+            /**
+             * Four runs:
+             * 1. PV + Minimum price -> min in time
+             * 2. Minimum price -> min in time
+             * 3. PV + Minimum price -> max
+             * 4. Minimum price -> max
+             */
+            for ($j = 0; $j < 4; $j++) {
+                //check for prices
+                if ($j < 2) {
+                    $limit = $this->min_soc;
+                    $prices = $price_obj->get_ordered_price_slice($start, $end);
+                } else {
+                    $limit = $this->max_soc;
+                    $prices = $price_obj->get_ordered_price_slice($start);
+                }
+                if ($soc < $limit) {
+                    foreach ($prices as $hour => $price) {
+
+                        if (isset($this->plan[$hour]))
+                            continue;
+                        if (($j == 0 || $j == 2) && ($pv[$hour] ?? 0) < 0.8 * $this->min_kw)
+                            continue;
+
+                        $kw = $this->min_kw;
+                        if ($j == 0 || $j == 2) {
+                            if (0.8 * $pv[$hour] > $kw)
+                                $kw = 0.8 * $pv[$hour];
+                            if ($kw > $this->max_kw)
+                                $kw = $this->max_kw;
+                        }
+                        $this->plan[$hour] = $kw;
+                        $soc += 100 / $this->kwh * $kw * $this->hour_left($hour);
+
+                        if ($soc > $limit)
+                            break;
+                    }
+                }
+            }
+        }
+        return true;
+
     }
-    public function getSoc()
-    {
+
+    public function getPlan(){
+        return $this->plan;
+    }
+
+    public function getSOC(){
         return $this->soc;
-    }
-    public function getMinKw()
-    {
-        return $this->min_kw;
-    }
-    public function getMaxKw()
-    {
-        return $this->max_kw;
-    }
-    public function getMinSoc()
-    {
-        return $this->min_soc;
-    }
-    public function getMaxSoc()
-    {
-        return $this->max_soc;
-    }
-    public function getChargeTime()
-    {
-        return $this->charge_time;
     }
 
     public function getStatus()

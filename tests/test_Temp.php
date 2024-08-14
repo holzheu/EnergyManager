@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__."/../EnergyManager/EnergyManager.php";
+require_once __DIR__ . '/../EnergyManager/autoload.php';
 
 $temp = new \EnergyManager\Temp\TempOpenMeteo([
     "latitude" => 50.8333,

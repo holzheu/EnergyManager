@@ -19,10 +19,8 @@ define("TEMP_OK", 0x8);
 define("HEATPUMP_OK", 0x10);
 define("HOUSE_OK", 0x20);
 define("BEV_OK", 0x40);
-class EnergyManager
-{
-    private float $time = 0; //Time variable... helpful for debugging
-    private $planing_status = BAT_OK | PV_OK | PRICE_OK | TEMP_OK | HEATPUMP_OK | BEV_OK;
+class EnergyManager extends Device 
+{   private $planing_status = BAT_OK | PV_OK | PRICE_OK | TEMP_OK | HEATPUMP_OK | BEV_OK;
     private $pv = []; //Array with estimated PV-production in kWh per hour
     private $price = []; //Array with prices in €/MWh per hour
     private $bev = [];  //Array with estimated BEV consumption in kWh per hour
@@ -42,15 +40,17 @@ class EnergyManager
     private Price\Price $price_obj;
     private House\House $house_obj;
     private Heatpump\Heatpump $hp_obj;
-    private Temp\Temp $temp_obj;
-
 
     /**
-     * EnergyManager
-     *
-     * constructor 
+     * Constructor of EnergyManager
+     * @param \EnergyManager\PV\PV $pv PV forecast object
+     * @param \EnergyManager\Battery\Battery $bat Battery object
+     * @param \EnergyManager\Price\Price $price Price object
+     * @param \EnergyManager\House\House $house House object
+     * @param \EnergyManager\BEV\BEV|null $bev BEV object
+     * @param \EnergyManager\Heatpump\Heatpump|null $hp Heatpump object
      */
-    public function __construct(PV\PV $pv, Battery\Battery $bat, Price\Price $price, House\House $house, BEV\BEV $bev = null, Heatpump\Heatpump $hp = null, Temp\Temp $temp = null)
+    public function __construct(PV\PV $pv, Battery\Battery $bat, Price\Price $price, House\House $house, BEV\BEV $bev = null, Heatpump\Heatpump $hp = null)
     {
         $this->pv_obj = $pv;
         $this->bat_obj = $bat;
@@ -58,26 +58,16 @@ class EnergyManager
         $this->bev_obj = $bev;
         $this->house_obj = $house;
         $this->hp_obj = $hp;
-        $this->temp_obj = $temp;
     }
 
 
-    /**
-     * Returns the timestamp of the full hour
-     * @param float $time
-     * @return int
-     */
-    private function full_hour(float $time): int
-    {
-        return (int) floor($time / 3600) * 3600;
-    }
 
     /**
      * Refreshes all objects
      * 
      * @return void
      */
-    private function refresh()
+    public function refresh()
     {
         if ($this->price_obj->refresh())
             $this->planing_status &= ~PRICE_OK;
@@ -91,78 +81,19 @@ class EnergyManager
             $this->planing_status &= ~BAT_OK;
 
         if (!is_null($this->bev_obj)) {
-            $this->bev_obj->refresh();
-            $soc = $this->bev_obj->getSoc();
-            if ($this->bev_obj->getChargeTime() > 0.001 && $soc < $this->bev_obj->getMaxSoc()) {
-                $end = $this->time() + $this->bev_obj->getChargeTime() * 3600;
-                $start = $this->full_hour($this->time());
-                /**
-                 * Four runs:
-                 * 1. PV + Minimum price -> min in time
-                 * 2. Minimum price -> min in time
-                 * 3. PV + Minimum price -> max
-                 * 4. Minimum price -> max
-                 */
-                for ($j = 0; $j < 4; $j++) {
-                    //check for prices
-                    if ($j < 2) {
-                        $limit = $this->bev_obj->getMinSoc();
-                        $prices = $this->price_obj->get_ordered_price_slice($start, $end);
-                    } else {
-                        $limit = $this->bev_obj->getMaxSoc();
-                        $prices = $this->price_obj->get_ordered_price_slice($start);
-                    }
-                    if ($soc < $limit) {
-                        foreach ($prices as $hour => $price) {
-
-                            if (isset($this->bev[$hour]))
-                                continue;
-                            if (($j == 0 || $j == 2) && ($this->pv[$hour] ?? 0) < 0.8 * $this->bev_obj->getMinKw())
-                                continue;
-
-                            $kw = $this->bev_obj->getMinKw();
-                            if ($j == 0 || $j == 2) {
-                                if (0.8 * $this->pv[$hour] > $kw)
-                                    $kw = 0.8 * $this->pv[$hour];
-                                if ($kw > $this->bev_obj->getMaxKw())
-                                    $kw = $this->bev_obj->getMaxKw();
-                            }
-                            $this->bev[$hour] = $kw;
-                            $soc += 100 / $this->bev_obj->getKWh() * $this->bev_obj->getMaxKw() * $this->hour_left($hour);
-
-                            if ($soc > $limit)
-                                break;
-                        }
-                    }
-                }
+            if($this->bev_obj->plan($this->pv_obj, $this->price_obj)) {
+                $this->bev=$this->bev_obj->getPlan();
+                $this->planing_status &= ~BEV_OK;
             }
-            $this->planing_status &= ~BEV_OK;
-
-
         } else
             $this->planing_status &= ~BEV_OK;
-
-
-        if (!is_null($this->temp_obj)) {
-            if ($this->temp_obj->refresh())
-                $this->planing_status &= ~TEMP_OK;
-
-            $this->temp = $this->temp_obj->getHourly();
-        } else
-            $this->planing_status &= ~TEMP_OK;
 
         if (!is_null($this->hp_obj)) {
-            if ($this->hp_obj->refresh())
+            if ($this->hp_obj->plan($this->pv_obj, $this->price_obj)){
                 $this->planing_status &= ~HEATPUMP_OK;
-            $dt = new \DateTime();
-            $this->heatpump = [];
-            $daily = $this->temp_obj->getDaily();
-            foreach ($this->temp_obj->getHourly() as $hour => $value) {
-                $dt->setTimestamp($hour);
-                $temp = $daily[$dt->format('Y-m-d')] ?? -999;
-                if ($temp == -999)
-                    break;
-                $this->heatpump[$hour] = $this->hp_obj->getKw($temp);
+                $this->planing_status &= ~TEMP_OK;
+                $this->heatpump = $this->hp_obj->getPlan();
+                $this->temp = $this->hp_obj->getTemp();
             }
         } else
             $this->planing_status &= ~HEATPUMP_OK;
@@ -172,36 +103,7 @@ class EnergyManager
 
     }
 
-    /**
-     * Returns the current time of the EnergeyManager
-     * normally this is just time()
-     * But for debugging it is helpful to calculate the plan for
-     * timestamps different from time()
-     * @return float|int
-     */
-    private function time()
-    {
-        if (!$this->time)
-            return time();
-        return $this->time;
-    }
 
-    /**
-     * Gives a factor of what is left from the hour (0-1)
-     * @return float
-     */
-    private function hour_left(float $hour)
-    {
-        $hour = $this->full_hour($hour);
-        $now = $this->time();
-        $factor = (3600 - ($now - $hour)) / 3600;
-        if ($factor < 0)
-            $factor = 0;
-        if ($factor > 1)
-            $factor = 1;
-        return $factor;
-
-    }
 
     /**
      * Calculates the consumption
@@ -232,25 +134,6 @@ class EnergyManager
         return $this->pv[$hour] - $this->consumption($hour);
     }
 
-    /**
-     * kWh to SOC
-     * @param mixed $kwh
-     * @return float
-     */
-    private function kwh2soc(float $kwh)
-    {
-        return $kwh / $this->bat_obj->getCapacity() * 100;
-    }
-
-    /**
-     * SOC to kWh
-     * @param mixed $soc
-     * @return float
-     */
-    private function soc2kwh(float $soc)
-    {
-        return $soc / 100 * $this->bat_obj->getCapacity();
-    }
 
 
     /**
@@ -265,15 +148,15 @@ class EnergyManager
         $hour = $this->full_hour($from);
         $to = $this->full_hour($to);
         while ($hour < $to) {
-            $soc += $this->kwh2soc($this->battery_flow[$hour]) * $this->hour_left($hour);
+            $soc += $this->bat_obj->kwh2soc($this->battery_flow[$hour]) * $this->hour_left($hour);
             $this->grid[$hour] ??= 0;
             if ($soc < 5) {
-                $diff = $this->soc2kwh(5 - $soc);
+                $diff = $this->bat_obj->soc2kwh(5 - $soc);
                 $this->battery_flow[$hour] += $diff / $this->hour_left($hour);
                 $this->grid[$hour] -= $diff / $this->hour_left($hour);
                 $soc = 5;
             } else if ($soc > 100) {
-                $diff = $this->soc2kwh($soc - 100);
+                $diff = $this->bat_obj->soc2kwh($soc - 100);
                 $this->battery_flow[$hour] -= $diff / $this->hour_left($hour);
                 $this->grid[$hour] += $diff / $this->hour_left($hour);
                 $soc = 100;
@@ -306,7 +189,7 @@ class EnergyManager
             if ($this->battery_flow[$hour] > 0)
                 continue; //no Battery discharge
             $factor = $this->hour_left($hour);
-            $soc += $this->kwh2soc($this->battery_flow[$hour]) * $factor;
+            $soc += $this->bat_obj->kwh2soc($this->battery_flow[$hour]) * $factor;
             $this->grid[$hour] = 0; //no grid discharge battery...
             if ($soc < 10) {
                 $kwh = (10 - $soc) / 100 * $this->bat_obj->getCapacity() / $factor;
@@ -351,10 +234,10 @@ class EnergyManager
             $this->battery_restrictions[$hour] = 'active charge';
             $soc += $soc_rate * $factor;
 
-            $this->battery_flow[$hour] = $this->soc2kwh($soc_rate);
-            $this->battery_active_flow[$hour] = $this->soc2kwh($soc_rate);
+            $this->battery_flow[$hour] = $this->bat_obj->soc2kwh($soc_rate);
+            $this->battery_active_flow[$hour] = $this->bat_obj->soc2kwh($soc_rate);
             $this->calc_gridflow($hour);
-            $grid -= $this->soc2kwh($soc_rate) * $factor;
+            $grid -= $this->bat_obj->soc2kwh($soc_rate) * $factor;
             if ($grid < 0)
                 break;
             if ($soc > 100)
@@ -387,7 +270,7 @@ class EnergyManager
             if ($this->battery_flow[$hour] < 0)
                 continue;
             $factor = $this->hour_left($hour);
-            $soc += $this->kwh2soc($this->battery_flow[$hour]) * $factor;
+            $soc += $this->bat_obj->kwh2soc($this->battery_flow[$hour]) * $factor;
             if ($soc >= 100) {
                 $kwh = ($soc - 100) / 100 * $this->bat_obj->getCapacity() / $factor;
                 $this->battery_flow[$hour] -= $kwh;
@@ -436,9 +319,9 @@ class EnergyManager
 
             $factor = $this->hour_left($hour);
             $this->battery_restrictions[$hour] = 'active discharge';
-            $this->battery_active_flow[$hour] = -$this->soc2kwh($soc_rate);
+            $this->battery_active_flow[$hour] = -$this->bat_obj->soc2kwh($soc_rate);
             $soc -= $soc_rate * $factor;
-            $this->battery_flow[$hour] = -$this->soc2kwh($soc_rate);
+            $this->battery_flow[$hour] = -$this->bat_obj->soc2kwh($soc_rate);
             $this->grid[$hour] = -$this->battery_flow[$hour] + $this->grid_flow_without_battery($hour);
             $grid -= $this->grid[$hour] * $factor;
             if ($grid < $this->bat_obj->getSettings()['min_grid'])
@@ -455,15 +338,10 @@ class EnergyManager
      * Then the planning is carried out by the current time
      * @return bool|string
      */
-    public function plan($time = null)
+    public function plan()
     {
-        if ($time === null) {
-            $time = time();
-            $this->time = 0;
-        } else
-            $this->time = $time;
         //Avoid planing 10 s before new hour
-        if ($this->hour_left($time) < 10 / 3600)
+        if ($this->hour_left($this->time()) < 10 / 3600)
             return false;
 
         //Refresh all objects
@@ -476,7 +354,7 @@ class EnergyManager
         }
 
         // Calculate expected Production/Consumption the next 24 hours
-        $now = $this->full_hour($time);
+        $now = $this->full_hour($this->time());
         $hour = $now;
 
         $prod = 0;
