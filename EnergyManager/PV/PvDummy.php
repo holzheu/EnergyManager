@@ -9,7 +9,7 @@ namespace EnergyManager\PV;
  */
 class PvDummy extends PV {
     public function refresh(){
-        $json_file = file_get_contents(__DIR__."/../../tests/solar.json");
+        $json_file = file_get_contents(__DIR__."/../../data/solar.json");
         $json = json_decode($json_file, true);
         $pv = [];
         $dt= new \DateTime();

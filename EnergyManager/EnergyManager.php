@@ -411,7 +411,7 @@ class EnergyManager extends Device
                     $this->pv[$hour],
                     $this->bev[$hour],
                     $this->house[$hour],
-                    $this->heatpump[$hour],
+                    $this->heatpump[$hour]??NAN,
                     $this->battery_flow[$hour],
                     $this->grid[$hour] ?? 0,
                     $bat,

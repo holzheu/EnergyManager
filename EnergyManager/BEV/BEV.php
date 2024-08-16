@@ -17,18 +17,24 @@ abstract class BEV extends \EnergyManager\Device
 
     protected $plan = [];
 
+    protected $is_present = true;
+
 
     abstract public function charge($kw, $duration);
 
-    public function plan(\EnergyManager\PV\PV $pv_obj, \EnergyManager\Price\Price $price_obj){
-        if(! $this->refresh()) return false;
-        $time= $this->time();
-        $this->plan=[];
+    public function plan(\EnergyManager\PV\PV $pv_obj, \EnergyManager\Price\Price $price_obj)
+    {
+        if (!$this->refresh())
+            return false;
+        $time = $this->time();
+        $this->plan = [];
+        if (!$this->is_present)
+            return true;
         $soc = $this->soc;
-        $pv=$pv_obj->getProduction();
+        $pv = $pv_obj->getProduction();
         if ($this->charge_time > 0.001 && $soc < $this->max_soc) {
             $end = $time + $this->charge_time * 3600;
-            $start = floor($time/3600)*3600;
+            $start = floor($time / 3600) * 3600;
             /**
              * Four runs:
              * 1. PV + Minimum price -> min in time
@@ -73,12 +79,25 @@ abstract class BEV extends \EnergyManager\Device
 
     }
 
-    public function getPlan(){
+    public function getPlan()
+    {
         return $this->plan;
     }
 
-    public function getSOC(){
+    public function getSOC()
+    {
         return $this->soc;
+    }
+
+    public function setSOC($soc)
+    {
+        $this->soc = $soc;
+    }
+
+    public function setChargeTime($charge_time)
+    {
+        $this->charge_time = $charge_time;
+        $this->is_present= ($this->charge_time > 0);
     }
 
     public function getStatus()

@@ -41,14 +41,14 @@ abstract class Price extends \EnergyManager\Device
 
     public function getMin(int $hours): float
     {
-        $start = time();
+        $start = $this->time();
         $prices = $this->get_ordered_price_slice($start, $start + 3600 * $hours);
         return array_values($prices)[0];
     }
 
     public function getMax(int $hours): float
     {
-        $start = time();
+        $start = $this->time();
         $prices = $this->get_ordered_price_slice($start, $start + 3600 * $hours, true);
         return array_values($prices)[0];
     }
