@@ -18,13 +18,15 @@ class TempFile extends Temp {
         $dt = new \DateTime();
         $dt->setTimestamp($hour);
         $dt->modify("-1 day");
-        $start= \DateTime::createFromFormat("Y-m-d", $dt->format("Y-m-d"));
+        $start= \DateTime::createFromFormat("Y-m-d H", $dt->format("Y-m-d 00"));
         $hour = $start->getTimestamp();
-
+        $i=floor(($hour-$json['time'][0])/3600);
+        if($i<0 || $i>=count($json['time'])){
+            throw new \Exception('no data.');
+        }
         $count=0;
         $mean=0;
-        for($i=0;$i<count($json['time']);$i++){
-            if($json['time'][$i]<$hour) continue;
+        while($i<count($json['time'])){
             $dt->setTimestamp($json['time'][$i]);
             $this->hourly[$dt->getTimestamp()] = $json['temp'][$i];
             $mean+=$json['temp'][$i];
@@ -33,8 +35,11 @@ class TempFile extends Temp {
                 $dt->modify('-12 hours');
                 $this->daily[$dt->format('Y-m-d')] = $mean / 24;
                 $mean = 0;
-            }
-        }
+            }           
+            $i++;
+            if($count>96) break;
+
+        }        
         return true;
     }
 }

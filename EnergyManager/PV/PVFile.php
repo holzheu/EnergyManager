@@ -15,14 +15,18 @@ class PVFile extends PV {
         $pv = [];
         $hour = $this->time();
         $hour = $this->full_hour($hour);
-        
+        $i=floor(($hour-$json['time'][0])/3600);
+        if($i<0 || $i>=count($json['time'])){
+            throw new \Exception('no data.');
+        }
         $count=0;
-        for($i=0;$i<count($json['time']);$i++){
-            if($json['time'][$i]<$hour) continue;
+        while($i<count($json['time'])){
             $pv[$json['time'][$i]] = $json['pv'][$i];
             $count++;
             if($count>30) break;
-        }
+            $i++;
+
+        }        
         $this->production = $pv;
         return true;
     }

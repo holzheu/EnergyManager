@@ -6,8 +6,8 @@
 namespace EnergyManager\Temp;
 abstract class Temp extends \EnergyManager\Device {
 
-    protected $hourly = [];
-    protected $daily = [];
+    protected array $hourly = [];
+    protected array $daily = [];
 
     /**
      * get the temperature forecast in hourly resolution

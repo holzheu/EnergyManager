@@ -21,13 +21,16 @@ class PriceFile extends Price {
             $dt->modify('+1 day');
         }
         $end_time=$dt->format('Y-m-d 23');
-        
-        for($i=0;$i<count($json['time']);$i++){
-            if($json['time'][$i]<$hour) continue;
+        $i=floor(($hour-$json['time'][0])/3600);
+        if($i<0 || $i>=count($json['time'])){
+            throw new \Exception('no data.');
+        }
+        while($i<count($json['time'])){
             $dt->setTimestamp($json['time'][$i]);
-            if($dt->format('Y-m-d H')> $end_time) break;
-            
+            if($dt->format('Y-m-d H')> $end_time) break;       
             $this->price[$json['time'][$i]] = $json['price'][$i];
+            $i++;
+
         }
         return true;
     }

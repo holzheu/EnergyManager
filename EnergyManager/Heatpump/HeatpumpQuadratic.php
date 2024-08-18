@@ -25,17 +25,17 @@ class HeatpumpQuadratic extends Heatpump{
     }
 
     
-    public function plan(\EnergyManager\PV\PV $pv_obj, \EnergyManager\Price\Price $price_obj):bool{
+    public function plan(array $free_prod, \EnergyManager\Price\Price $price_obj):bool{
         if(! $this->refresh()) return false;
         $dt = new \DateTime();
         $dt->setTimestamp($this->time());
         $this->plan = [];
         $daily = $this->temp_obj->getDaily();
-        foreach ($this->temp_obj->getHourly() as $hour => $value) {
+        foreach($free_prod as $hour=>$prod){
             $dt->setTimestamp($hour);
             $temp = $daily[$dt->format('Y-m-d')] ?? -999;
             if ($temp == -999)
-                break;
+                continue;
             $this->plan[$hour] = $this->getKw($temp);
         }
         return true;

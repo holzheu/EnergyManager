@@ -6,12 +6,13 @@
 namespace EnergyManager\House;
 abstract class House extends \EnergyManager\Device {
 
-    /**
-     * Get electricity demand of the house
-     * without heatpump and bev
-     * @param float $hour 
-     * @return float electricity demand (kW)
-     */
-    abstract public function getKw($hour);
+    protected $plan = [];
+
+    abstract public function plan(array $free_prod, \EnergyManager\Price\Price $price_obj);
+
+    public function getPlan(){
+        return $this->plan;
+    }
+
 }
 

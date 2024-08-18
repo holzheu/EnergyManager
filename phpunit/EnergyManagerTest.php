@@ -27,14 +27,14 @@ class EnergyManagerTest extends \PHPUnit\Framework\TestCase
             "lin_coef" => 0.017678,
             "quad_coef" => 0.002755
         ], $temp);
-   
-        
+
+
         //create manager
         $manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house, $bev, $hp);
-        $result= $manager->plan();
+        $result = $manager->plan();
         $this->assertStringContainsString("Production", $result);
-        
-        
+
+
         $manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house2, $bev, $hp);
         $result = $manager->plan();
         $this->assertStringContainsString("Production", $result);

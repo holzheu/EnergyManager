@@ -20,7 +20,7 @@ abstract class Heatpump extends \EnergyManager\Device {
     abstract public function __construct(array $settings, \EnergyManager\Temp\Temp $temp_obj);
     
     
-    abstract public function plan(\EnergyManager\PV\PV $pv_obj, \EnergyManager\Price\Price $price_obj):bool;
+    abstract public function plan(array $free_prod, \EnergyManager\Price\Price $price_obj):bool;
  
 
     public function getPlan(){

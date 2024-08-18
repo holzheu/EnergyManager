@@ -19,8 +19,9 @@ define("TEMP_OK", 0x8);
 define("HEATPUMP_OK", 0x10);
 define("HOUSE_OK", 0x20);
 define("BEV_OK", 0x40);
-class EnergyManager extends Device 
-{   private $planing_status = BAT_OK | PV_OK | PRICE_OK | TEMP_OK | HEATPUMP_OK | BEV_OK;
+class EnergyManager extends Device
+{
+    private $planing_status = BAT_OK | PV_OK | PRICE_OK | TEMP_OK | HEATPUMP_OK | BEV_OK;
     private $pv = []; //Array with estimated PV-production in kWh per hour
     private $price = []; //Array with prices in €/MWh per hour
     private $bev = [];  //Array with estimated BEV consumption in kWh per hour
@@ -36,10 +37,10 @@ class EnergyManager extends Device
     //Objects 
     private PV\PV $pv_obj;
     private Battery\Battery $bat_obj;
-    private BEV\BEV $bev_obj;
     private Price\Price $price_obj;
     private House\House $house_obj;
-    private Heatpump\Heatpump $hp_obj;
+    private ?Heatpump\Heatpump $hp_obj=null;
+    private ?BEV\BEV $bev_obj=null;
 
     /**
      * Constructor of EnergyManager
@@ -47,17 +48,17 @@ class EnergyManager extends Device
      * @param \EnergyManager\Battery\Battery $bat Battery object
      * @param \EnergyManager\Price\Price $price Price object
      * @param \EnergyManager\House\House $house House object
-     * @param \EnergyManager\BEV\BEV|null $bev BEV object
-     * @param \EnergyManager\Heatpump\Heatpump|null $hp Heatpump object
+     * @param ?\EnergyManager\BEV\BEV|null $bev BEV object
+     * @param ?\EnergyManager\Heatpump\Heatpump|null $hp Heatpump object
      */
     public function __construct(PV\PV $pv, Battery\Battery $bat, Price\Price $price, House\House $house, BEV\BEV $bev = null, Heatpump\Heatpump $hp = null)
     {
         $this->pv_obj = $pv;
         $this->bat_obj = $bat;
         $this->price_obj = $price;
-        $this->bev_obj = $bev;
         $this->house_obj = $house;
-        $this->hp_obj = $hp;
+        if( $bev!==null) $this->bev_obj = $bev;
+        if( $hp!==null) $this->hp_obj = $hp;
     }
 
 
@@ -80,16 +81,11 @@ class EnergyManager extends Device
         if ($this->bat_obj->refresh())
             $this->planing_status &= ~BAT_OK;
 
-        if (!is_null($this->bev_obj)) {
-            if($this->bev_obj->plan($this->pv_obj, $this->price_obj)) {
-                $this->bev=$this->bev_obj->getPlan();
-                $this->planing_status &= ~BEV_OK;
-            }
-        } else
-            $this->planing_status &= ~BEV_OK;
+        $this->house_obj->plan($this->getFreeProduction(''), $this->price_obj);
+        $this->house=$this->house_obj->getPlan();
 
         if (!is_null($this->hp_obj)) {
-            if ($this->hp_obj->plan($this->pv_obj, $this->price_obj)){
+            if ($this->hp_obj->plan($this->getFreeProduction('house'), $this->price_obj)) {
                 $this->planing_status &= ~HEATPUMP_OK;
                 $this->planing_status &= ~TEMP_OK;
                 $this->heatpump = $this->hp_obj->getPlan();
@@ -97,6 +93,16 @@ class EnergyManager extends Device
             }
         } else
             $this->planing_status &= ~HEATPUMP_OK;
+
+
+        if (!is_null($this->bev_obj)) {
+            if ($this->bev_obj->plan($this->getFreeProduction('heatpump'), $this->price_obj)) {
+                $this->bev = $this->bev_obj->getPlan();
+                $this->planing_status &= ~BEV_OK;
+            }
+        } else
+            $this->planing_status &= ~BEV_OK;
+
 
 
 
@@ -134,6 +140,22 @@ class EnergyManager extends Device
         return $this->pv[$hour] - $this->consumption($hour);
     }
 
+    public function getFreeProduction(string $with = 'house')
+    {
+        $hour = $this->full_hour($this->time());
+        $res = [];
+        for ($i = 0; $i < 24; $i++) {
+            $res[$hour] = $this->pv[$hour]??0;
+            switch($with){
+                case 'heatpump':
+                    $res[$hour] -= $this->heatpump[$hour];
+                case 'house':
+                    $res[$hour]-=$this->house[$hour];
+            }
+            $hour += 3600;
+        }
+        return $res;
+    }
 
 
     /**
@@ -360,7 +382,6 @@ class EnergyManager extends Device
         $prod = 0;
         $cons = 0;
         while ($hour < $now + 24 * 3600) {
-            $this->house[$hour] = $this->house_obj->getKw($hour);
             if (!isset($this->pv[$hour]))
                 $this->pv[$hour] = 0;
             if (!isset($this->bev[$hour]))
@@ -411,7 +432,7 @@ class EnergyManager extends Device
                     $this->pv[$hour],
                     $this->bev[$hour],
                     $this->house[$hour],
-                    $this->heatpump[$hour]??NAN,
+                    $this->heatpump[$hour] ?? NAN,
                     $this->battery_flow[$hour],
                     $this->grid[$hour] ?? 0,
                     $bat,

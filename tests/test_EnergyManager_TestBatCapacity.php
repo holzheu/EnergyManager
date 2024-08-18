@@ -1,22 +1,10 @@
 #!/usr/bin/php
 <?php
-$dt = DateTime::createFromFormat("Y-m-d H", '2024-04-03 00');
-$num_days=7;
-$output='cli';
-//$output='data';
-$usleep=0;
 
 require_once __DIR__ . '/../EnergyManager/autoload.php';
 
 $time = new \EnergyManager\Time();
 //create objects
-$bat = new \EnergyManager\Battery\BatteryDummy([
-    'kwh' => 10,
-    'soc' => 60,
-    'charge_power' => 1.5,
-    'md_min_soc' => 25
-]);
-$bat->setTimeObj($time);
 
 $pv = new \EnergyManager\PV\PVFile();
 $pv->setTimeObj($time);
@@ -42,8 +30,21 @@ $hp = new \EnergyManager\Heatpump\HeatpumpQuadratic([
     "lin_coef" => 0.017678,
     "quad_coef" => 0.002755
 ], $temp);
-$hp->setTimeObj($time);
 
+
+$kaps=range(1,80,3);
+
+foreach ($kaps as $kap) {
+
+    $dt = DateTime::createFromFormat("Y-m-d H", '2024-04-02 00');
+
+$bat = new \EnergyManager\Battery\BatteryDummy([
+    'kwh' => $kap,
+    'soc' => 60,
+    'charge_power' => 1.5,
+    'md_min_soc' => 25
+]);
+$bat->setTimeObj($time);
 
 
 $manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house, $bev, $hp);
@@ -67,19 +68,18 @@ $house_e = 0;
 
 
 $charge_hours = [
-//    17 => ['soc' => -15, 'charge_time' => 14],
-//    24 + 17 => ['soc' => -15, 'charge_time' => 13],
-//    24 * 2 + 17 => ['soc' => -15, 'charge_time' => 13],
-//    24 * 3 + 17 => ['soc' => -15, 'charge_time' => 13],
-//    24 * 4 + 17 => ['soc' => -15, 'charge_time' => 14 + 24 * 2]
 ];
 $charge_time = 7;
 
-for ($i = 0; $i < 24 * $num_days; $i++) {
+//$output='cli';
+//$output='data';
+$output='summary';
+
+for ($i = 0; $i < 24 * 120; $i++) {
+    $time->set($dt->getTimestamp());
     $bev->setChargeTime($charge_time);
     if ($charge_time >= 0)
         $charge_time--;
-    $time->set($dt->getTimestamp());
     $plan= $manager->plan();
     $data = $manager->get_planning_info($dt->getTimestamp());
     $euro = $data['Preis'];
@@ -137,7 +137,7 @@ for ($i = 0; $i < 24 * $num_days; $i++) {
             echo $bev_text;
             break;
         case 'data':
-            $head='Datetime';
+            $head='Datatime';
             $line=$dt->format('Y-m-d H');
             foreach($data as $k => $v){
                 $head.="\t".$k;
@@ -149,9 +149,10 @@ for ($i = 0; $i < 24 * $num_days; $i++) {
 
     }
     $dt->modify("+1 hour");
-    if($output=='cli') usleep($usleep);
+    if($output=='cli') usleep(300000);
 
 }
+    if($output== 'summary') echo $kap."\t".$feedin_e / $feedin_kwh ."\n";
 
-
+}
 

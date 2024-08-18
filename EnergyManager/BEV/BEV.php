@@ -22,7 +22,7 @@ abstract class BEV extends \EnergyManager\Device
 
     abstract public function charge($kw, $duration);
 
-    public function plan(\EnergyManager\PV\PV $pv_obj, \EnergyManager\Price\Price $price_obj)
+    public function plan(array $free_prod, \EnergyManager\Price\Price $price_obj)
     {
         if (!$this->refresh())
             return false;
@@ -31,7 +31,6 @@ abstract class BEV extends \EnergyManager\Device
         if (!$this->is_present)
             return true;
         $soc = $this->soc;
-        $pv = $pv_obj->getProduction();
         if ($this->charge_time > 0.001 && $soc < $this->max_soc) {
             $end = $time + $this->charge_time * 3600;
             $start = floor($time / 3600) * 3600;
@@ -56,13 +55,13 @@ abstract class BEV extends \EnergyManager\Device
 
                         if (isset($this->plan[$hour]))
                             continue;
-                        if (($j == 0 || $j == 2) && ($pv[$hour] ?? 0) < 0.8 * $this->min_kw)
+                        if (($j == 0 || $j == 2) && ($free_prod[$hour] ?? 0) < $this->min_kw)
                             continue;
 
                         $kw = $this->min_kw;
                         if ($j == 0 || $j == 2) {
-                            if (0.8 * $pv[$hour] > $kw)
-                                $kw = 0.8 * $pv[$hour];
+                            if ($free_prod[$hour] > $kw)
+                                $kw = $free_prod[$hour];
                             if ($kw > $this->max_kw)
                                 $kw = $this->max_kw;
                         }

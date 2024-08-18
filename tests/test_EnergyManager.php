@@ -27,7 +27,7 @@ $temp = new \EnergyManager\Temp\TempOpenMeteo([
 $hp = new \EnergyManager\Heatpump\HeatpumpQuadratic([
     "lin_coef" => 0.017678,
     "quad_coef" => 0.002755
-],$temp);
+], $temp);
 
 
 
