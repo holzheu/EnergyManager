@@ -4,8 +4,12 @@ class HPTest extends \PHPUnit\Framework\TestCase
 {
     public function testHP()
     {
-        $temp = new \EnergyManager\Temp\TempFile();
         $time = new \EnergyManager\Time();
+        $dt = new \DateTime("2024-07-01 10:00");
+        $time->set($dt->getTimestamp());
+
+        $temp = new \EnergyManager\Temp\TempFile();
+
         $temp->setTimeObj($time);
         $hp = new \EnergyManager\Heatpump\HeatpumpQuadratic([
             "lin_coef" => 0.017678,
@@ -13,8 +17,6 @@ class HPTest extends \PHPUnit\Framework\TestCase
         ], $temp);
         $hp->setTimeObj($time);
 
-        $dt = new \DateTime("2024-07-01 10:00");
-        $time->set($dt->getTimestamp());
         $hp->refresh();
 
         $price = new \EnergyManager\Price\PriceFile();

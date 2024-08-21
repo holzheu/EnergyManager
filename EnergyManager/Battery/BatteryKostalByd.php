@@ -8,10 +8,10 @@ require_once 'PHPModbus/ModbusMasterTcp.php';
 class BatteryKostalByd extends Battery
 {
     private \ModbusMasterTcp $modbus; //phpmodbus Object
-    private int $error_count=0; //error count
+    private int $error_count = 0; //error count
 
     private array $status; //array with battery values read via modbusTCP
-    private float $last_write=0; //Last write
+    private float $last_write = 0; //Last write
 
     /**
      * Constructor
@@ -19,11 +19,13 @@ class BatteryKostalByd extends Battery
      */
     public function __construct(array $settings)
     {
-        $this->defaults = array_merge(parent::$bat_defaults, 
-        [
-            "ip" => null,
-            "plant_id" => 71
-        ]);
+        $this->defaults = array_merge(
+            parent::$bat_defaults,
+            [
+                "ip" => null,
+                "plant_id" => 71
+            ]
+        );
 
         $this->setSettings($settings);
 
@@ -168,9 +170,10 @@ REGISTER;
      */
     public function setMode($mode, $kw = null)
     {
-        if(! is_null($kw)) $kw= -$kw; //change sign to fitt Kostal 
-        $current_kw = $this->status['Actual battery charge (-) / discharge (+) current'] * $this->status['Battery voltage']/1000;
-        $current_grid = $this->status['Total active power (powermeter)']/1000;
+        if (!is_null($kw))
+            $kw = -$kw; //change sign to fitt Kostal 
+        $current_kw = $this->status['Actual battery charge (-) / discharge (+) current'] * $this->status['Battery voltage'] / 1000;
+        $current_grid = $this->status['Total active power (powermeter)'] / 1000;
         $external_active = (time() - $this->last_write) < 10;
         switch ($mode) {
             case 'active discharge':
@@ -187,17 +190,16 @@ REGISTER;
                 //Error detection
                 //Battery power should reach set setpoint within (Power setpoint)/(max Gradient) (e.g. 2000/42 ) seconds.
                 //If battery does not react, disable external battery manangement for a while ...
-                if ($current_kw < $kw * 0.5) {
+                if ($current_kw < $kw * 0.2) {
                     $this->error_count++;
-                    if ($this->error_count > 10) {
-                        if ($this->error_count == 11)
+                    if ($this->error_count > 5) {
+                        if ($this->error_count == 6)
                             fwrite(STDERR, date('Y-m-d H:i:s') . ' ' . "EnergyManager: Battery does not react " .
                                 sprintf("Current: %.0f -- Set: %.0f", $current_kw, $kw) . "...\n");
-                        $kw = false;
+                        $kw = null;
                         if ($this->error_count > 30) {
                             $this->error_count = 0;
                             fwrite(STDERR, date('Y-m-d H:i:s') . ' ' . "EnergyManager: Battery retry...\n");
-
                         }
 
                     }
@@ -207,7 +209,7 @@ REGISTER;
             case 'no charge':
                 $kw = 0;
                 if ($external_active && $current_grid > 0.1)
-                    $rate = null; //more demand than production -> disable external battery management
+                    $kw = null; //more demand than production -> disable external battery management
                 if (!$external_active && $current_kw > 0)
                     $kw = null; //still more demand than production -> keep external battery manangement disabled   
                 if ($this->soc > 98)
@@ -215,8 +217,10 @@ REGISTER;
                 break;
             case 'no discarge':
                 $kw = 0;
-                if($external_active && $current_grid < 0) $kw = null; //Grid feed in --- charge battery instead
-                if(! $external_active && $current_kw < -0.05) $kw = null; //still less demand then production
+                if ($external_active && $current_grid < 0)
+                    $kw = null; //Grid feed in --- charge battery instead
+                if (!$external_active && $current_kw < -0.05)
+                    $kw = null; //still less demand then production
                 break;
             case 'active charge':
                 break;
@@ -229,7 +233,7 @@ REGISTER;
             $this->last_write = time();
             try {
                 // FC 16
-                $recData = $this->modbus->writeMultipleRegister($this->settings['plant_id'], 1034, [$kw*1000], ['FLOAT']);
+                $recData = $this->modbus->writeMultipleRegister($this->settings['plant_id'], 1034, [$kw * 1000], ['FLOAT']);
             } catch (\Exception $e) {
                 // Print error information if any
                 fwrite(STDERR, date('Y-m-d H:i:s') . ' ' . "EnergyManager: failed to write modbus: $e\n");

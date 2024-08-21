@@ -499,8 +499,7 @@ class EnergyManager extends Device
         //Battery
         if (isset($this->battery_restrictions[$hour])) {
             $this->bat_obj->setMode($this->battery_restrictions[$hour], $this->battery_active_flow[$hour] ?? 0);
-        }
-
+        }     
 
         //BEV
         if ($this->bev[$hour] > 0) {

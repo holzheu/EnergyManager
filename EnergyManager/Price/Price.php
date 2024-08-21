@@ -53,6 +53,24 @@ abstract class Price extends \EnergyManager\Device
         return array_values($prices)[0];
     }
 
+    public function getMean(int $hours): float
+    {
+        $hour = $this->full_hour($this->time());
+        $mean = 0;
+        $count = 0;
+        while (isset($this->price[$hour])) {
+            $mean += $this->price[$hour];
+            $hour += 3600;
+            $count++;
+            if ($count == $hours)
+                break;
+        }
+        if (!$count)
+            return NAN;
+        return $mean / $count;
+
+    }
+
     public function getPrice(): array
     {
         return $this->price;
