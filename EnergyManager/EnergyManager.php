@@ -185,7 +185,7 @@ class EnergyManager extends Device
 
             }
             $this->battery[$hour] = $soc;
-            if ($soc >= 99) {
+            if ($soc >= 99 || $soc<15) {
                 if (($this->battery_restrictions[$hour] ?? '') == 'no charge')
                     unset($this->battery_restrictions[$hour]);
             }
@@ -420,14 +420,14 @@ class EnergyManager extends Device
         //Table output for debugging
         $dt->setTimestamp($this->time());
         $table = "Time: " . $dt->format('Y-m-d H:i:s') . "\n";
-        $table .= "   Date       Price PV    BEV   House HP    Bat   Grid  Bat   Temp  Restr.\n";
+        $table .= "   Date       Price PV    BEV   House HP    Bat   Grid  Bat   Temp  Restr. Bat/HP\n";
         $table .= "  Y-m-d H     €/MWh kWh   kWh   kWh   kWh   kWh   kWh   %     °C\n";
         foreach ($this->battery as $hour => $bat) {
             $dt->setTimestamp($hour);
             $table .= $dt->format(DATE_H) . " ";
             $table .= (
                 sprintf(
-                    "%5.0f %5.1f %5.1f %5.1f %5.1f %5.1f %5.1f %5.0f %5.1f %s\n",
+                    "%5.0f %5.1f %5.1f %5.1f %5.1f %5.1f %5.1f %5.0f %5.1f %s/%s\n",
                     $this->price[$hour] ?? NAN,
                     $this->pv[$hour],
                     $this->bev[$hour],
@@ -437,7 +437,8 @@ class EnergyManager extends Device
                     $this->grid[$hour] ?? 0,
                     $bat,
                     $this->temp[$hour] ?? NAN,
-                    $this->battery_restrictions[$hour] ?? '-'
+                    $this->battery_restrictions[$hour] ?? '-',
+                    $this->hp_obj->getMode()[$hour]??'-'
                 )
             );
         }
@@ -505,6 +506,9 @@ class EnergyManager extends Device
         if ($this->bev[$hour] > 0) {
             $this->bev_obj->charge($this->bev[$hour], 2 / 60);
         }
+
+        //HP
+        $this->hp_obj->setMode($this->hp_obj->getMode()[$hour]??'');
         return true;
 
     }

@@ -16,6 +16,15 @@ class HPTest extends \PHPUnit\Framework\TestCase
             "quad_coef" => 0.002755
         ], $temp);
         $hp->setTimeObj($time);
+        
+        require __DIR__.'/../EnergyManager/secrets.php';
+        $hp = new \EnergyManager\Heatpump\HeatpumpDimplexDaikin([
+            "lin_coef" => 0.017678,
+            "quad_coef" => 0.002755,
+            'ip'=>DimplexIP,
+            'daikin'=>DaikinIPs
+        ], $temp);
+        $hp->setTimeObj($time);
 
         $hp->refresh();
 

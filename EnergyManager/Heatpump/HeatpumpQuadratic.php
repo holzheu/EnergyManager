@@ -24,24 +24,49 @@ class HeatpumpQuadratic extends Heatpump{
         return $this->temp_obj->refresh();
     }
 
+    public function setMode(string $mode){
+
+    }
     
     public function plan(array $free_prod, \EnergyManager\Price\Price $price_obj):bool{
         if(! $this->refresh()) return false;
         $dt = new \DateTime();
         $dt->setTimestamp($this->time());
         $this->plan = [];
+        $this->mode = [];
         $daily = $this->temp_obj->getDaily();
+        $mean_price=$price_obj->getMean(24);
+        $prices = $price_obj->get_ordered_price_slice($this->time(),$this->time()+24*3600,true);
+        $disabled=0;
+        foreach($prices as $hour=>$price){
+            if(($price-$mean_price)<30) break;
+            $this->mode[$hour]='disabled';
+            $disabled++;
+        }
+        
+        $prices = $price_obj->get_ordered_price_slice($this->time(),$this->time()+24*3600,false);
+        $enhanced=0;
+        foreach($prices as $hour=>$price){
+            if(($price-$mean_price)> -30 && $price>0) break;
+            $this->mode[$hour]='enhanced';
+            $enhanced++;
+        }
+       
+
+
         foreach($free_prod as $hour=>$prod){
             $dt->setTimestamp($hour);
             $temp = $daily[$dt->format('Y-m-d')] ?? -999;
             if ($temp == -999)
                 continue;
             $this->plan[$hour] = $this->getKw($temp);
+            if(($this->mode[$hour]??'')=='disabled') $this->plan[$hour]=0;
+            if(($this->mode[$hour]??'')=='enhanced') $this->plan[$hour]*=2;
         }
         return true;
     }
 
-    private function getKw($temp){
+    protected function getKw($temp){
         if ($temp > $this->settings['heating_limit']) 
           return 0;
         

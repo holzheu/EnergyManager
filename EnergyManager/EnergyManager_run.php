@@ -10,9 +10,12 @@ $temp = new \EnergyManager\Temp\TempOpenMeteo([
     "latitude" => OpenMeteo_latitude,
     "longitude" => OpenMeteo_longitude
 ]);
-$hp = new \EnergyManager\Heatpump\HeatpumpQuadratic([
+$hp = new \EnergyManager\Heatpump\HeatpumpDimplexDaikin([
     "lin_coef" => 0.017678,
-    "quad_coef" => 0.002755
+    "quad_coef" => 0.002755,
+    "daikin"=>DaikinIPs,
+    "daikin_timetable"=>DaikinTimetable,
+    'ip'=>DimplexIP
 ],$temp);
 $bev = new \EnergyManager\BEV\BevDIY([
     "ip" => BEV_DIV_ip,
