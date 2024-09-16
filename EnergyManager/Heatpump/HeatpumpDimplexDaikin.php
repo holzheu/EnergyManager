@@ -18,12 +18,18 @@ class HeatpumpDimplexDaikin extends HeatpumpQuadratic
             "ip" => null,
             "daikin" => [],
             "daikin_timetable" => [],
+            "daikin_delta" => 2,
+            "max_kw"=>3,
             "plant_id" => 1,
             "heating_limit" => 15,
             "indoor_temp" => 20,
             "lin_coef" => null,
             "quad_coef" => null,
-            "refresh" => 60
+            "refresh" => 60,
+            'price_enhance_delta' => -30, /*enhance when price 30 €/MWh below mean*/
+            'price_enhance' => 10, /*enhance when price is blow 10 €/MWh */
+            'price_disable_delta' => 20, /*disable when price 20 €/MWh above mean*/
+            'price_disable' => 70 /* Do not disable when price is below 70 €/MWh */
         ];
         $this->setSettings($settings);
         $this->modbus = new \ModbusMasterTcp($this->settings['ip'], "1502");
@@ -84,30 +90,32 @@ class HeatpumpDimplexDaikin extends HeatpumpQuadratic
         $this->update = $dt->getTimestamp();
         //Daikin
         $count = 0;
-        $otemp = 0;
         $htemp = 0;
+        $pow = 0;
         foreach ($this->settings['daikin'] as $name => $ip) {
+            $v = $this->readDaikin($ip, 'get_control_info');
+            if ($v !== false) {
+                $this->daikin[$name]['pow'] = $v['pow'];
+                $pow += $v['pow'];
+                $this->daikin[$name]['stemp'] = $v['stemp'];
+            } else
+                return false;
+
             $v = $this->readDaikin($ip, 'get_sensor_info');
             if ($v !== false) {
-                $otemp += $v['otemp'];
+                $this->daikin['otemp'] = $v['otemp'];
                 $htemp += $v['htemp'];
                 $count++;
                 $this->daikin[$name]['htemp'] = $v['htemp'];
             } else
                 return false;
 
-            $v = $this->readDaikin($ip, 'get_control_info');
-            if ($v !== false) {
-                $this->daikin[$name]['pow'] = $v['pow'];
-                $this->daikin[$name]['stemp'] = $v['stemp'];
-            } else
-                return false;
+
         }
         if ($count > 0) {
             $this->daikin['htemp'] = $htemp / $count;
-            $this->daikin['otemp'] = $otemp / $count;
         }
-
+        $this->daikin['pow'] = $pow;
 
         //Modbus
         $modbus_felder = [
@@ -280,16 +288,18 @@ class HeatpumpDimplexDaikin extends HeatpumpQuadratic
         $dt->setTimestamp($this->time());
         $this->plan = [];
         $this->mode = [];
-        $kw = $this->getKw($this->temp_obj->getMean());
-        $max_disabled = (3.0 - $kw) / 3 * 24;
         $daily = $this->temp_obj->getDaily();
         $mean_price = $price_obj->getMean(24);
+
+        $house_min_temp = ($this->dimplex['Haus Miniumtemperatur'] + ($this->daikin['pow'] ? $this->settings['daikin_delta'] : 0));
         $prices = $price_obj->get_ordered_price_slice($this->time(), $this->time() + 24 * 3600, true);
         $disabled = 0;
+        $kw = $this->getKw($this->temp_obj->getMean());
+        $max_disabled = ($this->settings['max_kw'] - $kw) / $this->settings['max_kw'] * 24;
         foreach ($prices as $hour => $price) {
-            if ($this->daikin['htemp'] < $this->dimplex['Haus Miniumtemperatur'])
+            if ($this->daikin['htemp'] < $house_min_temp)
                 break;
-            if (($price - $mean_price) < 10)
+            if (($price - $mean_price) < $this->settings['price_disable_delta'] || $price < $this->settings['price_disable'])
                 break;
             $this->mode[$hour] = 'disabled';
             $disabled++;
@@ -300,13 +310,11 @@ class HeatpumpDimplexDaikin extends HeatpumpQuadratic
         $prices = $price_obj->get_ordered_price_slice($this->time(), $this->time() + 24 * 3600, false);
         $enhanced = 0;
         foreach ($prices as $hour => $price) {
-            if (($price - $mean_price) > -30 && $price > 0)
+            if (($price - $mean_price) > $this->settings['price_enhance_delta'] && $price > $this->settings['price_enhance'])
                 break;
             $this->mode[$hour] = 'enhanced';
             $enhanced++;
         }
-
-
 
         foreach ($free_prod as $hour => $prod) {
             $dt->setTimestamp($hour);
@@ -315,7 +323,7 @@ class HeatpumpDimplexDaikin extends HeatpumpQuadratic
                 continue;
             $this->plan[$hour] = $this->getKw($temp);
             if (
-                $prod <= 0 && ($this->daikin['htemp'] - $this->dimplex['Haus Miniumtemperatur']) > 1
+                $prod <= 0 && ($this->daikin['htemp'] - $house_min_temp) > 1
                 && $disabled < $max_disabled && ($this->mode[$hour] ?? '') != 'disabled'
             ) {
                 $this->mode[$hour] = 'disabled';
@@ -330,11 +338,16 @@ class HeatpumpDimplexDaikin extends HeatpumpQuadratic
         //rescale to expected power consumption...
         $kwh = 0;
         foreach ($this->plan as $v) {
+            if (is_null(($v)))
+                $v = 0;
             $kwh += $v;
         }
-        foreach ($this->plan as $hour => $v) {
-            $this->plan[$hour] *= $kw / $kwh * 24;
+        if($kwh){
+            foreach ($this->plan as $hour => $v) {
+                $this->plan[$hour] *= $kw / $kwh * 24;
+            }
         }
+
         return true;
     }
 }
