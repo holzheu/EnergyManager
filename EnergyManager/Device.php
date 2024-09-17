@@ -87,10 +87,11 @@ abstract class Device
 
     /**
      * get the Setting array
-     * @return array
+     * @return mixed
      */
-    public function getSettings()
+    public function getSettings($key=null): mixed
     {
+        if(! is_null($key)) return $this->settings[$key]??null;
         return $this->settings;
     }
 

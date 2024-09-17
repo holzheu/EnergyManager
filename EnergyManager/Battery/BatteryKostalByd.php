@@ -19,13 +19,10 @@ class BatteryKostalByd extends Battery
      */
     public function __construct(array $settings)
     {
-        $this->defaults = array_merge(
-            parent::$bat_defaults,
-            [
-                "ip" => null,
-                "plant_id" => 71
-            ]
-        );
+        $this->defaults = [
+            "ip" => null,
+            "plant_id" => 71
+        ];
 
         $this->setSettings($settings);
 

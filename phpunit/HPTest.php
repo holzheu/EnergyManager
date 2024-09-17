@@ -12,16 +12,25 @@ class HPTest extends \PHPUnit\Framework\TestCase
 
         $temp->setTimeObj($time);
 
-        require __DIR__.'/../EnergyManager/secrets.php';
-        $hp = new \EnergyManager\Heatpump\HeatpumpDimplexDaikin([
-            "lin_coef" => 0.017678,
-            "quad_coef" => 0.002755,
-            'ip'=>DimplexIP,
-            'daikin'=>DaikinIPs
-        ], $temp);
-        $hp->setTimeObj($time);
 
-        $hp->refresh();
+        $sock = socket_create(AF_INET, SOCK_DGRAM, SOL_UDP);
+        socket_connect($sock, "8.8.8.8", 53);
+        socket_getsockname($sock, $name); // $name passed by reference
+        
+        if(strstr($name,'192.168.2')){
+
+            require __DIR__.'/../EnergyManager/secrets.php';
+            $hp = new \EnergyManager\Heatpump\HeatpumpDimplexDaikin([
+                "lin_coef" => 0.017678,
+                "quad_coef" => 0.002755,
+                'ip'=>DimplexIP,
+                'daikin'=>DaikinIPs
+            ], $temp);
+            $hp->setTimeObj($time);
+    
+            $hp->refresh();
+    
+        }
 
 
 

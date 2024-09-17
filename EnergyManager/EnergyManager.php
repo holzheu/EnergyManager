@@ -34,6 +34,9 @@ class EnergyManager extends Device
     private $house = []; //Array with estimated house consumption in kWh per hour
     private $heatpump = []; //Array with estimated heat pump consumption in kWh per hour
 
+    
+
+
     //Objects 
     private PV\PV $pv_obj;
     private Battery\Battery $bat_obj;
@@ -51,7 +54,7 @@ class EnergyManager extends Device
      * @param ?\EnergyManager\BEV\BEV|null $bev BEV object
      * @param ?\EnergyManager\Heatpump\Heatpump|null $hp Heatpump object
      */
-    public function __construct(PV\PV $pv, Battery\Battery $bat, Price\Price $price, House\House $house, BEV\BEV $bev = null, Heatpump\Heatpump $hp = null)
+    public function __construct(PV\PV $pv, Battery\Battery $bat, Price\Price $price, House\House $house, BEV\BEV $bev = null, Heatpump\Heatpump $hp = null, $settings=[])
     {
         $this->pv_obj = $pv;
         $this->bat_obj = $bat;
@@ -59,6 +62,20 @@ class EnergyManager extends Device
         $this->house_obj = $house;
         if( $bev!==null) $this->bev_obj = $bev;
         if( $hp!==null) $this->hp_obj = $hp;
+
+        $this->defaults = [
+            "ed_min_soc" => 50,
+            "ed_soc_rate" => 20,
+            "ed_min_price" => 60,
+            "md_min_soc" => 15,
+            "md_min_price" => 50,
+            "md_soc_rate" => 15,
+            "min_grid" => 5,
+            "charge_power" => 0,
+            "charge_max_price" => 50,
+            "charge_min_price_diff" => 50
+        ];
+        $this->setSettings($settings);
     }
 
 
@@ -102,11 +119,6 @@ class EnergyManager extends Device
             }
         } else
             $this->planing_status &= ~BEV_OK;
-
-
-
-
-
     }
 
 
@@ -185,7 +197,7 @@ class EnergyManager extends Device
 
             }
             $this->battery[$hour] = $soc;
-            if ($soc >= 99 || $soc<15) {
+            if ($soc >= 99 || $soc<($this->settings["md_min_soc"]-2)) {
                 if (($this->battery_restrictions[$hour] ?? '') == 'no charge')
                     unset($this->battery_restrictions[$hour]);
             }
@@ -238,7 +250,7 @@ class EnergyManager extends Device
      */
     private function find_active_charge(float $soc, float $grid, float $from, float $to = null)
     {
-        $soc_rate = $this->bat_obj->getSettings()['charge_power'] / $this->bat_obj->getCapacity() * 100;
+        $soc_rate = $this->settings['charge_power'] / $this->bat_obj->getCapacity() * 100;
         if ($soc_rate <= 0)
             return;
 
@@ -248,9 +260,9 @@ class EnergyManager extends Device
         $prices = $this->price_obj->get_ordered_price_slice($from, $to);
 
         foreach ($prices as $hour => $price) {
-            if (($max_price - $price) < $this->bat_obj->getSettings()['charge_min_price_diff'])
+            if (($max_price - $price) < $this->settings['charge_min_price_diff'])
                 break;
-            if ($price > $this->bat_obj->getSettings()['charge_max_price'])
+            if ($price > $this->settings['charge_max_price'])
                 break;
             $factor = $this->hour_left($hour);
             $this->battery_restrictions[$hour] = 'active charge';
@@ -320,20 +332,20 @@ class EnergyManager extends Device
     private function find_active_discharge(float $soc, float $grid, string $type, float $from, float $to = null)
     {
         $prices = $this->price_obj->get_ordered_price_slice($from, $to, true);
-        $soc_rate = $this->bat_obj->getSettings()[$type . '_soc_rate'];
+        $soc_rate = $this->settings[$type . '_soc_rate'];
         if ($soc_rate <= 0)
             return $soc; //No active discharge
 
-        if ($soc < $this->bat_obj->getSettings()[$type . '_min_soc'])
+        if ($soc < $this->settings[$type . '_min_soc'])
             return $soc;
 
 
         foreach ($prices as $hour => $price) {
             if ($type == 'md') {
-                if (($price - $this->price_obj->getMin(12)) < $this->bat_obj->getSettings()[$type . '_min_price'])
+                if (($price - $this->price_obj->getMin(12)) < $this->settings[$type . '_min_price'])
                     break; //no discharge below e.g. 80 €/MWh
             } else {
-                if (($price - $this->price_obj->getMin(24)) < $this->bat_obj->getSettings()[$type . '_min_price'])
+                if (($price - $this->price_obj->getMin(24)) < $this->settings[$type . '_min_price'])
                     break;
                 if ($this->pv[$hour] > 1.5)
                     continue;
@@ -346,9 +358,9 @@ class EnergyManager extends Device
             $this->battery_flow[$hour] = -$this->bat_obj->soc2kwh($soc_rate);
             $this->grid[$hour] = -$this->battery_flow[$hour] + $this->grid_flow_without_battery($hour);
             $grid -= $this->grid[$hour] * $factor;
-            if ($grid < $this->bat_obj->getSettings()['min_grid'])
+            if ($grid < $this->settings['min_grid'])
                 break;
-            if ($soc < $this->bat_obj->getSettings()[$type . '_min_soc'])
+            if ($soc < $this->settings[$type . '_min_soc'])
                 break;
         }
         return $soc;
@@ -403,7 +415,7 @@ class EnergyManager extends Device
         $dt = new \DateTime();
         $dt->setTimestamp($hour);
         $h = intval($dt->format('H'));
-        if (($prod - $cons) > $this->bat_obj->getSettings()['min_grid']) {
+        if (($prod - $cons) > $this->settings['min_grid']) {
             if ($h < 18)
                 $this->find_no_charge($soc, $now, $now + (18 - $h) * 3600);
             if ($h < 11 && $h >= 5)
@@ -411,7 +423,7 @@ class EnergyManager extends Device
             elseif ($h >= 11 || $h < 5)
                 $this->find_active_discharge($min_soc, $prod - $cons, 'ed', $now, $now + 12 * 3600);
 
-        } elseif (($cons - $prod) > $this->bat_obj->getSettings()['min_grid']) {
+        } elseif (($cons - $prod) > $this->settings['min_grid']) {
             $this->find_no_discharge($soc, $now, $now + 24 * 3600);
             $this->find_active_charge($soc, $cons - $prod, $now, $now + 24 * 3600);
         }

@@ -16,8 +16,8 @@ class HeatpumpDimplexDaikin extends HeatpumpQuadratic
     {
         $this->defaults = [
             "ip" => null,
-            "daikin" => [],
-            "daikin_timetable" => [],
+            "daikin" => [],//Format [ key =>ip, ...]
+            "daikin_timetable" => [], //Format [ key=>[['1-5','05:15-06:00',temp], ..],..]
             "daikin_delta" => 2,
             "max_kw"=>3,
             "plant_id" => 1,
