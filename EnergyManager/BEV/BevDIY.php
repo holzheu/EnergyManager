@@ -22,7 +22,8 @@ class BevDIY extends BEV
             "ip" => null,
             'kwh' => null,
             'kw' => null,
-            "refresh" => 30
+            "refresh" => 30,
+            'time_back'=>'15:30'
         ];
         $this->setSettings($settings);
         $this->max_kw = $this->settings['kw'];

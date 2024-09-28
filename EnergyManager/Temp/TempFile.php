@@ -39,7 +39,8 @@ class TempFile extends Temp {
             $i++;
             if($count>96) break;
 
-        }        
+        } 
+        $this->calcRollMean();      
         return true;
     }
 }

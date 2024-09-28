@@ -7,6 +7,7 @@ namespace EnergyManager\Temp;
 abstract class Temp extends \EnergyManager\Device {
 
     protected array $hourly = [];
+    protected array $roll_mean=[];
     protected array $daily = [];
 
     /**
@@ -15,6 +16,9 @@ abstract class Temp extends \EnergyManager\Device {
      */
     public function getHourly(){
         return $this->hourly;
+    }
+    public function getRollMean(){
+        return $this->roll_mean;
     }
 
     /**
@@ -41,5 +45,24 @@ abstract class Temp extends \EnergyManager\Device {
             return NAN;
         return $mean / $count;
 
+    }
+
+    protected function calcRollMean(){
+        $count=0;
+        $stack=[];
+        $sum=0;
+        $this->roll_mean=[];        
+        $dt=new \DateTime();
+        foreach($this->hourly as $hour=>$temp){
+            array_push($stack, $temp);
+            $count++;
+            $sum+=$temp;
+            if($count>=24){
+                $dt->setTimestamp($hour);
+                $dt->modify('-23 hours');
+                $this->roll_mean[$dt->getTimestamp()]=$sum/24;
+                $sum-=array_shift($stack);
+            }
+        }
     }
 }

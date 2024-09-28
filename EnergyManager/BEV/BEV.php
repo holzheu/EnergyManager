@@ -31,9 +31,15 @@ abstract class BEV extends \EnergyManager\Device
         if (!$this->is_present)
             return true;
         $soc = $this->soc;
-        if ($this->charge_time > 0.001 && $soc < $this->max_soc) {
+        if ($soc < $this->max_soc) {
             $end = $time + $this->charge_time * 3600;
             $start = floor($time / 3600) * 3600;
+            if ($this->charge_time < 0.001) {
+                $dt = new \DateTime($this->settings['time_back'] ?? '17:00');
+                $start = floor($dt->getTimestamp() / 3600) * 3600;
+                if (($time - $start) > 3600)
+                    $start += 3600 * 24;
+            }
             /**
              * Four runs:
              * 1. PV + Minimum price -> min in time
@@ -96,7 +102,7 @@ abstract class BEV extends \EnergyManager\Device
     public function setChargeTime($charge_time)
     {
         $this->charge_time = $charge_time;
-        $this->is_present= ($this->charge_time > 0);
+        $this->is_present = ($this->charge_time > 0);
     }
 
     public function getStatus()

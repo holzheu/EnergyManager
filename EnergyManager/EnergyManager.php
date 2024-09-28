@@ -34,7 +34,7 @@ class EnergyManager extends Device
     private $house = []; //Array with estimated house consumption in kWh per hour
     private $heatpump = []; //Array with estimated heat pump consumption in kWh per hour
 
-    
+
 
 
     //Objects 
@@ -42,8 +42,8 @@ class EnergyManager extends Device
     private Battery\Battery $bat_obj;
     private Price\Price $price_obj;
     private House\House $house_obj;
-    private ?Heatpump\Heatpump $hp_obj=null;
-    private ?BEV\BEV $bev_obj=null;
+    private ?Heatpump\Heatpump $hp_obj = null;
+    private ?BEV\BEV $bev_obj = null;
 
     /**
      * Constructor of EnergyManager
@@ -54,14 +54,16 @@ class EnergyManager extends Device
      * @param ?\EnergyManager\BEV\BEV|null $bev BEV object
      * @param ?\EnergyManager\Heatpump\Heatpump|null $hp Heatpump object
      */
-    public function __construct(PV\PV $pv, Battery\Battery $bat, Price\Price $price, House\House $house, BEV\BEV $bev = null, Heatpump\Heatpump $hp = null, $settings=[])
+    public function __construct(PV\PV $pv, Battery\Battery $bat, Price\Price $price, House\House $house, BEV\BEV $bev = null, Heatpump\Heatpump $hp = null, $settings = [])
     {
         $this->pv_obj = $pv;
         $this->bat_obj = $bat;
         $this->price_obj = $price;
         $this->house_obj = $house;
-        if( $bev!==null) $this->bev_obj = $bev;
-        if( $hp!==null) $this->hp_obj = $hp;
+        if ($bev !== null)
+            $this->bev_obj = $bev;
+        if ($hp !== null)
+            $this->hp_obj = $hp;
 
         $this->defaults = [
             "ed_min_soc" => 50,
@@ -99,7 +101,7 @@ class EnergyManager extends Device
             $this->planing_status &= ~BAT_OK;
 
         $this->house_obj->plan($this->getFreeProduction(''), $this->price_obj);
-        $this->house=$this->house_obj->getPlan();
+        $this->house = $this->house_obj->getPlan();
 
         if (!is_null($this->hp_obj)) {
             if ($this->hp_obj->plan($this->getFreeProduction('house'), $this->price_obj)) {
@@ -149,7 +151,7 @@ class EnergyManager extends Device
     private function grid_flow_without_battery(float $hour)
     {
         $hour = $this->full_hour($hour);
-        return $this->pv[$hour] - $this->consumption($hour);
+        return ($this->pv[$hour] ?? 0) - $this->consumption($hour);
     }
 
     public function getFreeProduction(string $with = 'house')
@@ -157,12 +159,12 @@ class EnergyManager extends Device
         $hour = $this->full_hour($this->time());
         $res = [];
         for ($i = 0; $i < 24; $i++) {
-            $res[$hour] = $this->pv[$hour]??0;
-            switch($with){
+            $res[$hour] = $this->pv[$hour] ?? 0;
+            switch ($with) {
                 case 'heatpump':
                     $res[$hour] -= $this->heatpump[$hour];
                 case 'house':
-                    $res[$hour]-=$this->house[$hour];
+                    $res[$hour] -= $this->house[$hour];
             }
             $hour += 3600;
         }
@@ -197,7 +199,7 @@ class EnergyManager extends Device
 
             }
             $this->battery[$hour] = $soc;
-            if ($soc >= 99 || $soc<($this->settings["md_min_soc"]-2)) {
+            if ($soc >= 99 || $soc < ($this->settings["md_min_soc"] - 2)) {
                 if (($this->battery_restrictions[$hour] ?? '') == 'no charge')
                     unset($this->battery_restrictions[$hour]);
             }
@@ -220,11 +222,12 @@ class EnergyManager extends Device
         $grid = 0;
         $prices = $this->price_obj->get_ordered_price_slice($from, $to, true); //highes prices first
         foreach ($prices as $hour => $price) {
-            if ($this->battery_flow[$hour] > 0)
-                continue; //no Battery discharge
+            //            if ($this->battery_flow[$hour] > 0)
+//                continue; //no Battery discharge
             $factor = $this->hour_left($hour);
-            $soc += $this->bat_obj->kwh2soc($this->battery_flow[$hour]) * $factor;
+            $this->battery_flow[$hour] = $this->grid_flow_without_battery($hour);
             $this->grid[$hour] = 0; //no grid discharge battery...
+            $soc += $this->bat_obj->kwh2soc($this->battery_flow[$hour]) * $factor;
             if ($soc < 10) {
                 $kwh = (10 - $soc) / 100 * $this->bat_obj->getCapacity() / $factor;
                 $this->battery_flow[$hour] += $kwh;
@@ -411,7 +414,7 @@ class EnergyManager extends Device
         $this->save_charge_plan($now, $now + 12 * 3600, $soc); //Save current plan to get min soc 
         $min_soc = min($this->battery);
         $min_soc = min($soc, $min_soc);
-
+        $charge_demand = $this->bat_obj->getCapacity() * (100 - $min_soc) / 100;
         $dt = new \DateTime();
         $dt->setTimestamp($hour);
         $h = intval($dt->format('H'));
@@ -423,9 +426,9 @@ class EnergyManager extends Device
             elseif ($h >= 11 || $h < 5)
                 $this->find_active_discharge($min_soc, $prod - $cons, 'ed', $now, $now + 12 * 3600);
 
-        } elseif (($cons - $prod) > $this->settings['min_grid']) {
+        } elseif (($cons + $charge_demand - $prod) > $this->settings['min_grid']) {
             $this->find_no_discharge($soc, $now, $now + 24 * 3600);
-            $this->find_active_charge($soc, $cons - $prod, $now, $now + 24 * 3600);
+            $this->find_active_charge($soc, $cons + $charge_demand - $prod, $now, $now + 24 * 3600);
         }
         $this->save_charge_plan($now, $now + 24 * 3600, $soc);
 
@@ -450,7 +453,7 @@ class EnergyManager extends Device
                     $bat,
                     $this->temp[$hour] ?? NAN,
                     $this->battery_restrictions[$hour] ?? '-',
-                    $this->hp_obj->getMode()[$hour]??'-'
+                    $this->hp_obj->getMode()[$hour] ?? '-'
                 )
             );
         }
@@ -511,16 +514,31 @@ class EnergyManager extends Device
         $hour = $this->full_hour(time());
         //Battery
         if (isset($this->battery_restrictions[$hour])) {
-            $this->bat_obj->setMode($this->battery_restrictions[$hour], $this->battery_active_flow[$hour] ?? 0);
-        }     
+            try {
+                $this->bat_obj->setMode($this->battery_restrictions[$hour], $this->battery_active_flow[$hour] ?? 0);
+            } catch (\Exception $e) {
+                fwrite(STDERR, date('Y-m-d H:i:s') . ' ' .
+                    "EnergyManager: Battery setMode failed: " . $e->getMessage() . "\n");
+            }
+        }
 
         //BEV
         if ($this->bev[$hour] > 0) {
-            $this->bev_obj->charge($this->bev[$hour], 2 / 60);
+            try {
+                $this->bev_obj->charge($this->bev[$hour], 2 / 60);
+            } catch (\Exception $e) {
+                fwrite(STDERR, date('Y-m-d H:i:s') . ' ' .
+                    "EnergyManager: BEV charge failed: " . $e->getMessage() . "\n");
+            }
         }
 
         //HP
-        $this->hp_obj->setMode($this->hp_obj->getMode()[$hour]??'');
+        try {
+            $this->hp_obj->setMode($this->hp_obj->getMode()[$hour] ?? '');
+        } catch (\Exception $e) {
+            fwrite(STDERR, date('Y-m-d H:i:s') . ' ' .
+                "EnergyManager: HP setMode failed: " . $e->getMessage() . "\n");
+        }
         return true;
 
     }

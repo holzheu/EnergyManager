@@ -212,7 +212,7 @@ REGISTER;
                 if ($this->soc > 98)
                     $kw = null;
                 break;
-            case 'no discarge':
+            case 'no discharge':
                 $kw = 0;
                 if ($external_active && $current_grid < 0)
                     $kw = null; //Grid feed in --- charge battery instead
@@ -220,6 +220,27 @@ REGISTER;
                     $kw = null; //still less demand then production
                 break;
             case 'active charge':
+                /* does not work. Battery has to go to 0 flow first to
+                start internal battery management.
+                if ($current_kw < 2 * $kw && $external_active) {
+                    $kw = null; //disable external battery management 
+                    break;
+                }
+                if(! $external_active && $current_kw < 1.5 * $kw){
+                    $kw = null;
+                    break; //keep disabled
+                }
+                */
+                if ($current_grid < 0) { //more free production than charge
+                    if ($current_kw < $kw)
+                        $kw = $current_kw;
+                    $kw += $current_grid; //increase charge to meet free prod
+                } elseif (
+                    abs($current_grid) < 0.1 && $current_kw < $kw
+                ) {
+                    $kw = $current_kw; //keep increased charge
+                }
+
                 break;
             default:
                 throw new \Exception('Unknown mode ' . $mode);

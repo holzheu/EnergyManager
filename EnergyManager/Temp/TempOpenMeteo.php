@@ -46,6 +46,7 @@ class TempOpenMeteo extends Temp {
                 $mean = 0;
             }
         }
+        $this->calcRollMean();
         return true;
 
 

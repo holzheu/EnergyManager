@@ -294,19 +294,24 @@ class HeatpumpDimplexDaikin extends HeatpumpQuadratic
         $house_min_temp = ($this->dimplex['Haus Miniumtemperatur'] + ($this->daikin['pow'] ? $this->settings['daikin_delta'] : 0));
         $prices = $price_obj->get_ordered_price_slice($this->time(), $this->time() + 24 * 3600, true);
         $disabled = 0;
+        //expected power demand
         $kw = $this->getKw($this->temp_obj->getMean());
+        //maximum number of hours with disabled HP
         $max_disabled = ($this->settings['max_kw'] - $kw) / $this->settings['max_kw'] * 24;
+
+        //Looking for high prices to disable HP
         foreach ($prices as $hour => $price) {
             if ($this->daikin['htemp'] < $house_min_temp)
-                break;
+                break; //no not disable when house is below min temp
             if (($price - $mean_price) < $this->settings['price_disable_delta'] || $price < $this->settings['price_disable'])
-                break;
+                break; //price is not high enough
             $this->mode[$hour] = 'disabled';
             $disabled++;
             if ($disabled > $max_disabled)
-                break;
+                break; //reached max. number
         }
 
+        //Looking for low prices to enhance HP
         $prices = $price_obj->get_ordered_price_slice($this->time(), $this->time() + 24 * 3600, false);
         $enhanced = 0;
         foreach ($prices as $hour => $price) {
@@ -316,23 +321,24 @@ class HeatpumpDimplexDaikin extends HeatpumpQuadratic
             $enhanced++;
         }
 
+        //planning
         foreach ($free_prod as $hour => $prod) {
             $dt->setTimestamp($hour);
             $temp = $daily[$dt->format('Y-m-d')] ?? -999;
             if ($temp == -999)
                 continue;
-            $this->plan[$hour] = $this->getKw($temp);
+            $this->plan[$hour] = $this->getKw($temp); //expected demand without disable/enhance
             if (
                 $prod <= 0 && ($this->daikin['htemp'] - $house_min_temp) > 1
                 && $disabled < $max_disabled && ($this->mode[$hour] ?? '') != 'disabled'
-            ) {
+            ) { //no prduction, temp still ok
                 $this->mode[$hour] = 'disabled';
                 $disabled++;
             }
             if (($this->mode[$hour] ?? '') == 'disabled')
                 $this->plan[$hour] = 0;
             if (($this->mode[$hour] ?? '') == 'enhanced')
-                $this->plan[$hour] *= 1.5;
+                $this->plan[$hour] *= 1.5; //rough guess
         }
 
         //rescale to expected power consumption...
