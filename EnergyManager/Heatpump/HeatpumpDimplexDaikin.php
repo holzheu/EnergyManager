@@ -18,7 +18,7 @@ class HeatpumpDimplexDaikin extends HeatpumpQuadratic
             "ip" => null,
             "daikin" => [],//Format [ key =>ip, ...]
             "daikin_timetable" => [], //Format [ key=>[['1-5','05:15-06:00',temp], ..],..]
-            "daikin_delta" => 2,
+            "daikin_delta" => 3,
             "max_kw"=>3,
             "plant_id" => 1,
             "heating_limit" => 15,
@@ -305,6 +305,8 @@ class HeatpumpDimplexDaikin extends HeatpumpQuadratic
                 break; //no not disable when house is below min temp
             if (($price - $mean_price) < $this->settings['price_disable_delta'] || $price < $this->settings['price_disable'])
                 break; //price is not high enough
+            if($free_prod[$hour]> 2*$kw) 
+                continue; //Enough PV production
             $this->mode[$hour] = 'disabled';
             $disabled++;
             if ($disabled > $max_disabled)
@@ -329,7 +331,7 @@ class HeatpumpDimplexDaikin extends HeatpumpQuadratic
                 continue;
             $this->plan[$hour] = $this->getKw($temp); //expected demand without disable/enhance
             if (
-                $prod <= 0 && ($this->daikin['htemp'] - $house_min_temp) > 1
+                $prod <= 0 && $this->daikin['htemp'] >= $house_min_temp
                 && $disabled < $max_disabled && ($this->mode[$hour] ?? '') != 'disabled'
             ) { //no prduction, temp still ok
                 $this->mode[$hour] = 'disabled';

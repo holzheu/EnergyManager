@@ -61,9 +61,7 @@ class PvSolarprognose extends PV {
 
         $this->production=[];
         foreach ($json['data'] as $time => $value) {
-            $dt->setTimestamp($time);
-            $dt->modify("-1 hour");
-            $this->production[$dt->getTimestamp()] = $value[0] * $this->settings['factor'];
+            $this->production[$time] = $value[0] * $this->settings['factor'];
         }
 
         if($url != $cache_file){

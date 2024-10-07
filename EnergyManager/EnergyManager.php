@@ -371,8 +371,6 @@ class EnergyManager extends Device
 
     /**
      * Performs the planning for the next 24 hours
-     * Normally plan is called without argument. 
-     * Then the planning is carried out by the current time
      * @return bool|string
      */
     public function plan()
@@ -414,7 +412,7 @@ class EnergyManager extends Device
         $this->save_charge_plan($now, $now + 12 * 3600, $soc); //Save current plan to get min soc 
         $min_soc = min($this->battery);
         $min_soc = min($soc, $min_soc);
-        $charge_demand = $this->bat_obj->getCapacity() * (100 - $min_soc) / 100;
+        $charge_demand = $this->bat_obj->getCapacity() * (100 - $soc) / 100;
         $dt = new \DateTime();
         $dt->setTimestamp($hour);
         $h = intval($dt->format('H'));
@@ -428,7 +426,7 @@ class EnergyManager extends Device
 
         } elseif (($cons + $charge_demand - $prod) > $this->settings['min_grid']) {
             $this->find_no_discharge($soc, $now, $now + 24 * 3600);
-            $this->find_active_charge($soc, $cons + $charge_demand - $prod, $now, $now + 24 * 3600);
+            $this->find_active_charge($soc, $cons + $charge_demand - $prod, $now, $now + 12 * 3600);
         }
         $this->save_charge_plan($now, $now + 24 * 3600, $soc);
 

@@ -20,18 +20,7 @@ abstract class Price extends \EnergyManager\Device
      */
     public function get_ordered_price_slice($start, $end = null, $desc = false)
     {
-        $start = floor($start / 3600) * 3600;
-        if (!is_null($end))
-            $end = floor($end / 3600) * 3600;
-        $hours = array_keys($this->price);
-        $start = array_search($start, $hours);
-        if ($start === false)
-            return []; //Index not found
-        if (!is_null($end)) {
-            $end = array_search($end, $hours);
-            $end = $end ? $end - $start : null; //length
-        }
-        $price = array_slice($this->price, $start, $end, true);
+        $price = $this->getPrice($start, $end);
         if ($desc)
             arsort($price);
         else
@@ -71,9 +60,25 @@ abstract class Price extends \EnergyManager\Device
 
     }
 
-    public function getPrice(): array
+    public function getPrice($start = null, $end = null): array
     {
-        return $this->price;
+        if(is_null($start) && is_null($end))
+            return $this->price;
+
+        if(is_null($start)) $start=$this->time_obj->get();
+
+        $start = floor($start / 3600) * 3600;
+        if (!is_null($end))
+            $end = floor($end / 3600) * 3600;
+        $hours = array_keys($this->price);
+        $start = array_search($start, $hours);
+        if ($start === false)
+            return []; //Index not found
+        if (!is_null($end)) {
+            $end = array_search($end, $hours);
+            $end = $end ? $end - $start : null; //length
+        }
+        return array_slice($this->price, $start, $end, true);
     }
 
 }
