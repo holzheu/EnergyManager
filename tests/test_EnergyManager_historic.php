@@ -1,9 +1,9 @@
 #!/usr/bin/php
 <?php
-$dt = DateTime::createFromFormat("Y-m-d H", '2024-04-03 00');
+$dt = DateTime::createFromFormat("Y-m-d H", '2024-06-03 00');
 $num_days=7;
 $output='cli';
-//$output='data';
+$output='data';
 $usleep=0;
 
 require_once __DIR__ . '/../EnergyManager/autoload.php';
@@ -11,7 +11,7 @@ require_once __DIR__ . '/../EnergyManager/autoload.php';
 $time = new \EnergyManager\Time();
 //create objects
 $bat = new \EnergyManager\Battery\BatteryDummy([
-    'kwh' => 10,
+    'kwh' => 40,
     'soc' => 60,
     'charge_power' => 1.5,
     'md_min_soc' => 25
@@ -46,7 +46,10 @@ $hp->setTimeObj($time);
 
 
 
-$manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house, $bev, $hp);
+$manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house, $bev, $hp,[
+    'md_min_soc'=>10,
+    'ed_min_soc'=>30
+]);
 $manager->setTimeObj($time);
 
 

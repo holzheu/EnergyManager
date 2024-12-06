@@ -23,12 +23,14 @@ class BevDIY extends BEV
             'kwh' => null,
             'kw' => null,
             "refresh" => 30,
-            'time_back'=>'15:30'
+            'time_back'=>'15:30',
+            'max_price_full_charge'=>50
         ];
         $this->setSettings($settings);
         $this->max_kw = $this->settings['kw'];
         $this->min_kw = $this->settings['kw'];
         $this->kwh = $this->settings['kwh'];
+        $this->max_price_full_charge = $this->settings['max_price_full_charge'];
 
     }
 

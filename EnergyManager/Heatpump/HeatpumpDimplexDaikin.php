@@ -11,6 +11,7 @@ class HeatpumpDimplexDaikin extends HeatpumpQuadratic
     private \ModbusMasterTcp $modbus; //phpmodbus Object
     private array $daikin = [];
     private array $dimplex = [];
+    private int $last_mode_switch=0;
 
     public function __construct($settings, \EnergyManager\Temp\Temp $temp_obj)
     {
@@ -29,7 +30,8 @@ class HeatpumpDimplexDaikin extends HeatpumpQuadratic
             'price_enhance_delta' => -30, /*enhance when price 30 €/MWh below mean*/
             'price_enhance' => 10, /*enhance when price is blow 10 €/MWh */
             'price_disable_delta' => 20, /*disable when price 20 €/MWh above mean*/
-            'price_disable' => 70 /* Do not disable when price is below 70 €/MWh */
+            'price_disable' => 70, /* Do not disable when price is below 70 €/MWh */
+            'min_runtime'=>1800
         ];
         $this->setSettings($settings);
         $this->modbus = new \ModbusMasterTcp($this->settings['ip'], "1502");
@@ -70,6 +72,7 @@ class HeatpumpDimplexDaikin extends HeatpumpQuadratic
             if ($values['ret'] == 'OK') {
                 fwrite(STDOUT, date('Y-m-d H:i:s') . ' ' . "EnergyManager: Daikin $ip set $pow/$temp OK\n");
                 $this->update -= $this->settings['refresh'];//force update next call
+                $this->last_mode_switch=time();
                 return $values;
             } else {
                 fwrite(STDOUT, date('Y-m-d H:i:s') . ' ' . "EnergyManager: Daikin $ip set did not return OK\n");
@@ -145,12 +148,13 @@ class HeatpumpDimplexDaikin extends HeatpumpQuadratic
             "Awattar Anhebung",
             "Awattar Sperre",
             "Daikin Soll",
-            "Daikin Soll+"
+            "Daikin Soll+",
+            "Daikin Nacht"
         ];
 
         try {
-            $recData = $this->modbus->readMultipleRegisters($this->settings['plant_id'], 0, 27 * 2);
-            for ($i = 0; $i < 27; $i++) {
+            $recData = $this->modbus->readMultipleRegisters($this->settings['plant_id'], 0, count($modbus_felder) * 2);
+            for ($i = 0; $i < count($modbus_felder); $i++) {
                 $data = array_reverse(array_slice($recData, 4 * $i, 4));
                 $this->dimplex[$modbus_felder[$i]] = \PhpType::bytes2float($data, 1);
             }
@@ -177,12 +181,14 @@ class HeatpumpDimplexDaikin extends HeatpumpQuadratic
 
     public function setMode(string $mode)
     {
-        $temp = $this->dimplex['Daikin Soll'];
+        if((time()-$this->last_mode_switch)<$this->settings['min_runtime']) return;
+        $dt=new \DateTime();
+        $hour=$dt->format('H');
+        $temp = ($hour>="22" || $hour<"06"? $this->dimplex['Daikin Nacht']:$this->dimplex['Daikin Soll']);
         $temp_enhance = $this->dimplex['Daikin Soll+'];
         $write_modbus = false;
         //Checking Timetable
         $daikin_timetable = [];
-        $dt = new \DateTime();
         $dow = $dt->format('N');
         $hour = $dt->format('H:i');
         foreach ($this->settings['daikin'] as $name => $ip) {
@@ -296,6 +302,11 @@ class HeatpumpDimplexDaikin extends HeatpumpQuadratic
         $disabled = 0;
         //expected power demand
         $kw = $this->getKw($this->temp_obj->getMean());
+        $pv_prod=0;
+        foreach($free_prod as $prod){
+            $pv_prod+=$prod;
+        }
+        $pv_prod/=24;
         //maximum number of hours with disabled HP
         $max_disabled = ($this->settings['max_kw'] - $kw) / $this->settings['max_kw'] * 24;
 
@@ -331,7 +342,7 @@ class HeatpumpDimplexDaikin extends HeatpumpQuadratic
                 continue;
             $this->plan[$hour] = $this->getKw($temp); //expected demand without disable/enhance
             if (
-                $prod <= 0 && $this->daikin['htemp'] >= $house_min_temp
+                $prod <= 0 && $this->daikin['htemp'] >= $house_min_temp && $pv_prod>0.8*$kw
                 && $disabled < $max_disabled && ($this->mode[$hour] ?? '') != 'disabled'
             ) { //no prduction, temp still ok
                 $this->mode[$hour] = 'disabled';

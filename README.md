@@ -10,7 +10,8 @@ Based on PV and temperature forecasts and day-ahead electricity prices, the Ener
 
 ## Connected APIs 
 
-- [PV forecast](https://www.solarprognose.de/web/de/solarprediction/page/api)
+- [PV Forecast: solarprognose.de](https://www.solarprognose.de/web/de/solarprediction/page/api)
+- [PV Forecast. forecast.solar](https://doc.forecast.solar/api:estimate)
 - [Day Ahead Prices](https://energy.tado.com/services/api)
 - [Temperature](https://open-meteo.com/en/docs)
 

@@ -35,8 +35,7 @@ $bat = new \EnergyManager\Battery\BatteryKostalByd(['ip' => Kostal_Plenticore_Pl
 $manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house, $bev, $hp);
 
 $manager->setSettings([
-    'charge_power'=>Charge_Power,
-    'charge_max_price'=>Charge_Max_Price
+    'charge_power'=>Charge_Power
 ]);
 
 require_once 'BayEOSGatewayClient.php';

@@ -15,6 +15,8 @@ abstract class BEV extends \EnergyManager\Device
     protected $max_soc = 85;
     protected $charge_time = 2; //hours
 
+    protected $max_price_full_charge=50;
+
     protected $plan = [];
 
     protected $is_present = true;
@@ -75,6 +77,8 @@ abstract class BEV extends \EnergyManager\Device
                         $soc += 100 / $this->kwh * $kw * $this->hour_left($hour);
 
                         if ($soc > $limit)
+                            break;
+                        if($j==4 && $price>$this->max_price_full_charge)
                             break;
                     }
                 }

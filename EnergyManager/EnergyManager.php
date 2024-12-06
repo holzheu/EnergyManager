@@ -74,8 +74,8 @@ class EnergyManager extends Device
             "md_soc_rate" => 15,
             "min_grid" => 5,
             "charge_power" => 0,
-            "charge_max_price" => 50,
-            "charge_min_price_diff" => 50
+            "charge_min_maxprice" => 100, 
+            "charge_min_price_factor" => 1.7
         ];
         $this->setSettings($settings);
     }
@@ -259,14 +259,20 @@ class EnergyManager extends Device
 
         $prices = $this->price_obj->get_ordered_price_slice($from, $to, true);
         $max_price = array_values($prices)[0];
-
+        if($max_price<10) $max_price=10;
+        $max_hour = array_keys($prices)[0];
         $prices = $this->price_obj->get_ordered_price_slice($from, $to);
+        if ($max_price < $this->settings['charge_min_maxprice'] && array_values($prices)[0]>10)
+            return;
+
 
         foreach ($prices as $hour => $price) {
-            if (($max_price - $price) < $this->settings['charge_min_price_diff'])
+            if ($price <= 0)
+                $price = 0.01;
+            if (($max_price / $price) < $this->settings['charge_min_price_factor'])
                 break;
-            if ($price > $this->settings['charge_max_price'])
-                break;
+            if ($hour > $max_hour)
+                continue;
             $factor = $this->hour_left($hour);
             $this->battery_restrictions[$hour] = 'active charge';
             $soc += $soc_rate * $factor;
@@ -429,6 +435,13 @@ class EnergyManager extends Device
             $this->find_active_charge($soc, $cons + $charge_demand - $prod, $now, $now + 12 * 3600);
         }
         $this->save_charge_plan($now, $now + 24 * 3600, $soc);
+
+        //Second optimization for night 
+        if (min($this->battery) < 6) {
+            $this->find_no_discharge($soc, $now, $now + 12 * 3600);
+            $this->find_active_charge($soc, $cons + $charge_demand - $prod, $now, $now + 12 * 3600);
+            $this->save_charge_plan($now, $now + 24 * 3600, $soc);
+        }
 
         //Table output for debugging
         $dt->setTimestamp($this->time());
