@@ -286,7 +286,7 @@ class HeatpumpDimplexDaikin extends HeatpumpQuadratic
     }
 
 
-    public function plan(array $free_prod, \EnergyManager\Price\Price $price_obj): bool
+    public function plan(\EnergyManager\EnergyManager $em): bool
     {
         if (!$this->refresh())
             return false;
@@ -295,14 +295,15 @@ class HeatpumpDimplexDaikin extends HeatpumpQuadratic
         $this->plan = [];
         $this->mode = [];
         $daily = $this->temp_obj->getDaily();
-        $mean_price = $price_obj->getMean(24);
+        $mean_price = $em->getPriceObj()->getMean(24);
 
         $house_min_temp = ($this->dimplex['Haus Miniumtemperatur'] + ($this->daikin['pow'] ? $this->settings['daikin_delta'] : 0));
-        $prices = $price_obj->get_ordered_price_slice($this->time(), $this->time() + 24 * 3600, true);
+        $prices = $em->getPriceObj()->get_ordered_price_slice($this->time(), $this->time() + 24 * 3600, true);
         $disabled = 0;
         //expected power demand
         $kw = $this->getKw($this->temp_obj->getMean());
         $pv_prod=0;
+        $free_prod = $em->getFreeProduction();
         foreach($free_prod as $prod){
             $pv_prod+=$prod;
         }
@@ -325,7 +326,7 @@ class HeatpumpDimplexDaikin extends HeatpumpQuadratic
         }
 
         //Looking for low prices to enhance HP
-        $prices = $price_obj->get_ordered_price_slice($this->time(), $this->time() + 24 * 3600, false);
+        $prices = $em->getPriceObj()->get_ordered_price_slice($this->time(), $this->time() + 24 * 3600, false);
         $enhanced = 0;
         foreach ($prices as $hour => $price) {
             if (($price - $mean_price) > $this->settings['price_enhance_delta'] && $price > $this->settings['price_enhance'])
@@ -366,6 +367,7 @@ class HeatpumpDimplexDaikin extends HeatpumpQuadratic
                 $this->plan[$hour] *= $kw / $kwh * 24;
             }
         }
+        $em->updateFreeProduction($this->plan);
 
         return true;
     }

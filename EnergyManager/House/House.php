@@ -8,7 +8,7 @@ abstract class House extends \EnergyManager\Device {
 
     protected $plan = [];
 
-    abstract public function plan(array $free_prod, \EnergyManager\Price\Price $price_obj);
+    abstract public function plan(\EnergyManager\EnergyManager $em);
 
     public function getPlan(){
         return $this->plan;

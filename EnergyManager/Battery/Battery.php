@@ -75,7 +75,7 @@ abstract class Battery extends \EnergyManager\Device
      * @param float $kw
      * @return void
      */
-    abstract public function setMode(string $mode, float $kw = null);
+    abstract public function setMode(string $mode, ?float $kw = null);
 
 }
 

@@ -15,9 +15,20 @@ $hp = new \EnergyManager\Heatpump\HeatpumpQuadratic([
 $pv = new \EnergyManager\PV\PvDummy();
 $price = new \EnergyManager\Price\PriceAwattar();
 
+$bat = new \EnergyManager\Battery\BatteryDummy([
+    'kwh' => 10,
+    'soc' => 80,
+    'charge_power' => 1.5
+]);
+
+$house = new \EnergyManager\House\HouseConstant(['kwh_per_day' => 25]);
+
+
+$em = new \EnergyManager\EnergyManager($pv, $bat, $price, $house, hp:$hp);
+
 $pv->refresh();
 $price->refresh();
-$hp->plan($pv,$price);
+$hp->plan($em);
 print_r($hp->getPlan());
 print_r($hp->getTemp());
 

@@ -14,3 +14,4 @@ define("Kostal_Plenticore_Plus_ip",'192.168.1.5');
 define("BayEOS_USER",'import');
 define("BayEOS_PW",'import');
 define("BayEOS_IP",'192.168.1.6');
+define("EBike_ip","192.168.1.7");

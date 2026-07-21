@@ -23,8 +23,10 @@ class EnergyManager extends Device
 {
     private $planing_status = BAT_OK | PV_OK | PRICE_OK | TEMP_OK | HEATPUMP_OK | BEV_OK;
     private $pv = []; //Array with estimated PV-production in kWh per hour
+    private $free_prod = []; //Array with free PV-production in kWh per hour
     private $price = []; //Array with prices in €/MWh per hour
     private $bev = [];  //Array with estimated BEV consumption in kWh per hour
+    private $bev_single = [];  //Array with estimated single BEV consumption in kWh per hour
     private $battery = []; //Array with SOC per hours
     private $battery_flow = []; //Array with battery flow in kWh (+ charge battery, - discharge battery)
     private $battery_restrictions = []; //Array with restrictions
@@ -43,7 +45,7 @@ class EnergyManager extends Device
     private Price\Price $price_obj;
     private House\House $house_obj;
     private ?Heatpump\Heatpump $hp_obj = null;
-    private ?BEV\BEV $bev_obj = null;
+    private BEV\BEVArray $bev_obj;
 
     /**
      * Constructor of EnergyManager
@@ -51,17 +53,25 @@ class EnergyManager extends Device
      * @param \EnergyManager\Battery\Battery $bat Battery object
      * @param \EnergyManager\Price\Price $price Price object
      * @param \EnergyManager\House\House $house House object
-     * @param ?\EnergyManager\BEV\BEV|null $bev BEV object
+     * @param \EnergyManager\BEV\BEVArray $bev Array of BEV objects
      * @param ?\EnergyManager\Heatpump\Heatpump|null $hp Heatpump object
      */
-    public function __construct(PV\PV $pv, Battery\Battery $bat, Price\Price $price, House\House $house, BEV\BEV $bev = null, Heatpump\Heatpump $hp = null, $settings = [])
-    {
+    public function __construct(
+        PV\PV $pv,
+        Battery\Battery $bat,
+        Price\Price $price,
+        House\House $house,
+        ?BEV\BEVArray $bev = null,
+        ?Heatpump\Heatpump $hp = null,
+        $settings = []
+    ) {
         $this->pv_obj = $pv;
         $this->bat_obj = $bat;
         $this->price_obj = $price;
         $this->house_obj = $house;
-        if ($bev !== null)
-            $this->bev_obj = $bev;
+        if(is_null($bev))
+            $bev=new BEV\BEVArray();
+        $this->bev_obj = $bev;
         if ($hp !== null)
             $this->hp_obj = $hp;
 
@@ -72,9 +82,9 @@ class EnergyManager extends Device
             "md_min_soc" => 15,
             "md_min_price" => 50,
             "md_soc_rate" => 15,
-            "min_grid" => 5,
+            "min_grid" => 2,
             "charge_power" => 0,
-            "charge_min_maxprice" => 100, 
+            "charge_min_maxprice" => 100,
             "charge_min_price_factor" => 1.7
         ];
         $this->setSettings($settings);
@@ -100,11 +110,19 @@ class EnergyManager extends Device
         if ($this->bat_obj->refresh())
             $this->planing_status &= ~BAT_OK;
 
-        $this->house_obj->plan($this->getFreeProduction(''), $this->price_obj);
+        $hour = $this->full_hour($this->time());
+        $this->free_prod = [];
+        for ($i = 0; $i < 24; $i++) {
+            $this->free_prod[$hour] = $this->pv[$hour] ?? 0;
+            $hour += 3600;
+        }
+
+
+        $this->house_obj->plan($this);
         $this->house = $this->house_obj->getPlan();
 
         if (!is_null($this->hp_obj)) {
-            if ($this->hp_obj->plan($this->getFreeProduction('house'), $this->price_obj)) {
+            if ($this->hp_obj->plan($this)) {
                 $this->planing_status &= ~HEATPUMP_OK;
                 $this->planing_status &= ~TEMP_OK;
                 $this->heatpump = $this->hp_obj->getPlan();
@@ -114,10 +132,23 @@ class EnergyManager extends Device
             $this->planing_status &= ~HEATPUMP_OK;
 
 
-        if (!is_null($this->bev_obj)) {
-            if ($this->bev_obj->plan($this->getFreeProduction('heatpump'), $this->price_obj)) {
-                $this->bev = $this->bev_obj->getPlan();
+        for ($i = 0; $i < $this->bev_obj->getCount(); $i++) {
+            if ($this->bev_obj->getBEV($i)->plan($this)) {
+                $this->bev_single[$i] = $this->bev_obj->getBEV($i)->getPlan();
                 $this->planing_status &= ~BEV_OK;
+            }
+        }
+
+        if ($this->bev_obj->getCount()) {
+            //Sum up all BEV
+            $hour = $this->full_hour($this->time());
+            $this->bev = [];
+            for ($i = 0; $i < 24; $i++) {
+                $this->bev[$hour] = 0;
+                for ($j = 0; $j < $this->bev_obj->getCount(); $j++) {
+                    $this->bev[$hour] += $this->bev_single[$j][$hour] ?? 0;
+                }
+                $hour += 3600;
             }
         } else
             $this->planing_status &= ~BEV_OK;
@@ -154,23 +185,46 @@ class EnergyManager extends Device
         return ($this->pv[$hour] ?? 0) - $this->consumption($hour);
     }
 
-    public function getFreeProduction(string $with = 'house')
+    /**
+     * getFreeProduction array
+     * @return float[]
+     */
+    public function getFreeProduction()
     {
-        $hour = $this->full_hour($this->time());
-        $res = [];
-        for ($i = 0; $i < 24; $i++) {
-            $res[$hour] = $this->pv[$hour] ?? 0;
-            switch ($with) {
-                case 'heatpump':
-                    $res[$hour] -= $this->heatpump[$hour];
-                case 'house':
-                    $res[$hour] -= $this->house[$hour];
-            }
-            $hour += 3600;
-        }
-        return $res;
+        return $this->free_prod;
     }
 
+    /**
+     * Update free production array
+     * @param array $plan
+     * @return void
+     */
+    public function updateFreeProduction(array $plan)
+    {
+        foreach ($plan as $key => $value) {
+            if (!isset($this->free_prod[$key]))
+                $this->free_prod[$key] = 0;
+            $this->free_prod[$key] -= $value;
+        }
+    }
+
+    /**
+     * get Price array
+     * @return array
+     */
+    public function getPrice()
+    {
+        return $this->price;
+    }
+
+    /**
+     * get Price Object
+     * @return Price\Price
+     */
+    public function getPriceObj()
+    {
+        return $this->price_obj;
+    }
 
     /**
      * Save the charge plan
@@ -217,7 +271,7 @@ class EnergyManager extends Device
      * @param float $to End hour (not included)
      * @return array [End SOC, grid consumption]
      */
-    private function find_no_discharge(float $soc, float $from, float $to = null)
+    private function find_no_discharge(float $soc, float $from, ?float $to = null)
     {
         $grid = 0;
         $prices = $this->price_obj->get_ordered_price_slice($from, $to, true); //highes prices first
@@ -251,7 +305,7 @@ class EnergyManager extends Device
      * @param float $to End hour (not included)
      * @return void
      */
-    private function find_active_charge(float $soc, float $grid, float $from, float $to = null)
+    private function find_active_charge(float $soc, float $grid, float $from, ?float $to = null)
     {
         $soc_rate = $this->settings['charge_power'] / $this->bat_obj->getCapacity() * 100;
         if ($soc_rate <= 0)
@@ -259,10 +313,11 @@ class EnergyManager extends Device
 
         $prices = $this->price_obj->get_ordered_price_slice($from, $to, true);
         $max_price = array_values($prices)[0];
-        if($max_price<10) $max_price=10;
+        if ($max_price < 10)
+            $max_price = 10;
         $max_hour = array_keys($prices)[0];
         $prices = $this->price_obj->get_ordered_price_slice($from, $to);
-        if ($max_price < $this->settings['charge_min_maxprice'] && array_values($prices)[0]>10)
+        if ($max_price < $this->settings['charge_min_maxprice'] && array_values($prices)[0] > 10)
             return;
 
 
@@ -298,7 +353,7 @@ class EnergyManager extends Device
      * @param float $to End hour (not included)
      * @return float expected grid feed in
      */
-    private function find_no_charge(float $soc, float $from, float $to = null)
+    private function find_no_charge(float $soc, float $from, ?float $to = null)
     {
         $grid = 0;
         $prices = $this->price_obj->get_ordered_price_slice($from, $to);
@@ -338,7 +393,7 @@ class EnergyManager extends Device
      * @param float $to End hour (not included)
      * @return float Expected SOC after activ discharge
      */
-    private function find_active_discharge(float $soc, float $grid, string $type, float $from, float $to = null)
+    private function find_active_discharge(float $soc, float $grid, string $type, float $from, ?float $to = null)
     {
         $prices = $this->price_obj->get_ordered_price_slice($from, $to, true);
         $soc_rate = $this->settings[$type . '_soc_rate'];
@@ -385,7 +440,7 @@ class EnergyManager extends Device
         if ($this->hour_left($this->time()) < 10 / 3600)
             return false;
 
-        //Refresh all objects
+        //Refresh all objects and makes consumption planning
         $this->refresh();
 
         //Exit when planning information is missing
@@ -437,7 +492,7 @@ class EnergyManager extends Device
         $this->save_charge_plan($now, $now + 24 * 3600, $soc);
 
         //Second optimization for night 
-        if (min($this->battery) < 6) {
+        if (($h>17 || $h<7) && min($this->battery) < 6) {            
             $this->find_no_discharge($soc, $now, $now + 12 * 3600);
             $this->find_active_charge($soc, $cons + $charge_demand - $prod, $now, $now + 12 * 3600);
             $this->save_charge_plan($now, $now + 24 * 3600, $soc);
@@ -534,12 +589,14 @@ class EnergyManager extends Device
         }
 
         //BEV
-        if ($this->bev[$hour] > 0) {
-            try {
-                $this->bev_obj->charge($this->bev[$hour], 2 / 60);
-            } catch (\Exception $e) {
-                fwrite(STDERR, date('Y-m-d H:i:s') . ' ' .
-                    "EnergyManager: BEV charge failed: " . $e->getMessage() . "\n");
+        for ($i = 0; $i < $this->bev_obj->getCount(); $i++) {
+            if (($this->bev_single[$i][$hour] ?? 0) > 0) {
+                try {
+                    $this->bev_obj->getBEV($i)->charge($this->bev_single[$i][$hour], 2 / 60);
+                } catch (\Exception $e) {
+                    fwrite(STDERR, date('Y-m-d H:i:s') . ' ' .
+                        "EnergyManager: BEV charge failed: " . $e->getMessage() . "\n");
+                }
             }
         }
 
@@ -553,6 +610,4 @@ class EnergyManager extends Device
         return true;
 
     }
-
-
 }

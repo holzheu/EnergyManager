@@ -32,7 +32,7 @@ class HeatpumpQuadratic extends Heatpump
 
     }
 
-    public function plan(array $free_prod, \EnergyManager\Price\Price $price_obj): bool
+    public function plan(\EnergyManager\EnergyManager $em): bool
     {
         if (!$this->refresh())
             return false;
@@ -41,8 +41,8 @@ class HeatpumpQuadratic extends Heatpump
         $this->plan = [];
         $this->mode = [];
         $daily = $this->temp_obj->getDaily();
-        $mean_price = $price_obj->getMean(24);
-        $prices = $price_obj->get_ordered_price_slice($this->time(), $this->time() + 24 * 3600, true);
+        $mean_price = $em->getPriceObj()->getMean(24);
+        $prices = $em->getPriceObj()->get_ordered_price_slice($this->time(), $this->time() + 24 * 3600, true);
         $disabled = 0;
         foreach ($prices as $hour => $price) {
             if (($price - $mean_price) < 30)
@@ -51,7 +51,7 @@ class HeatpumpQuadratic extends Heatpump
             $disabled++;
         }
 
-        $prices = $price_obj->get_ordered_price_slice($this->time(), $this->time() + 24 * 3600, false);
+        $prices = $em->getPriceObj()->get_ordered_price_slice($this->time(), $this->time() + 24 * 3600, false);
         $enhanced = 0;
         foreach ($prices as $hour => $price) {
             if (($price - $mean_price) > -30 && $price > 0)
@@ -61,7 +61,7 @@ class HeatpumpQuadratic extends Heatpump
         }
 
 
-
+        $free_prod = $em->getFreeProduction();
         foreach ($free_prod as $hour => $prod) {
             $dt->setTimestamp($hour);
             $temp = $daily[$dt->format('Y-m-d')] ?? -999;
@@ -73,6 +73,7 @@ class HeatpumpQuadratic extends Heatpump
             if (($this->mode[$hour] ?? '') == 'enhanced')
                 $this->plan[$hour] *= 2;
         }
+        $em->updateFreeProduction($this->plan);
         return true;
     }
 

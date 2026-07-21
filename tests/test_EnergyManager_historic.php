@@ -29,6 +29,10 @@ $bev = new \EnergyManager\BEV\BevDummy([
 ]);
 $bev->setTimeObj($time);
 
+$bevs = new \EnergyManager\BEV\BEVArray();
+$bevs->addBEV($bev);
+
+
 $house = new \EnergyManager\House\HouseConstant(['kwh_per_day' => 10]);
 $house->setTimeObj($time);
 
@@ -46,7 +50,7 @@ $hp->setTimeObj($time);
 
 
 
-$manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house, $bev, $hp,[
+$manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house, $bevs, $hp,[
     'md_min_soc'=>10,
     'ed_min_soc'=>30
 ]);

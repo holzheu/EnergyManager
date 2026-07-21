@@ -18,6 +18,11 @@ $bev = new \EnergyManager\BEV\BevDummy([
     'max_kw' => 3
 ]);
 $bev->setTimeObj($time);
+$bevs = new \EnergyManager\BEV\BEVArray();
+$bevs->addBEV($bev);
+
+
+
 $house = new \EnergyManager\House\HouseConstant(['kwh_per_day' => 5]);
 $price = new \EnergyManager\Price\PriceAwattar();
 $temp = new \EnergyManager\Temp\TempOpenMeteo([
@@ -31,7 +36,7 @@ $hp = new \EnergyManager\Heatpump\HeatpumpQuadratic([
 
 
 
-$manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house, $bev, $hp);
+$manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house, $bevs, $hp);
 $manager->setTimeObj($time);
 
 $dt = new DateTime();

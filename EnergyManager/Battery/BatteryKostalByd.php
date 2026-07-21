@@ -250,8 +250,12 @@ REGISTER;
         if (!is_null($kw)) {
             $this->last_write = time();
             try {
-                // FC 16
-                $recData = $this->modbus->writeMultipleRegister($this->settings['plant_id'], 1034, [$kw * 1000], ['FLOAT']);
+                $recData = $this->modbus->writeMultipleRegister(
+                    $this->settings['plant_id'],
+                    1034,
+                    [$kw * 1000],
+                    ['FLOAT']
+                );
             } catch (\Exception $e) {
                 // Print error information if any
                 fwrite(STDERR, date('Y-m-d H:i:s') . ' ' . "EnergyManager: failed to write modbus: $e\n");

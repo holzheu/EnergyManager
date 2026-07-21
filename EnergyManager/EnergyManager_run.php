@@ -2,7 +2,7 @@
 <?php
 
 require_once __DIR__ . '/EnergyManager.php';
-require_once __DIR__ .'/secrets.php';
+require_once __DIR__ . '/secrets.php';
 
 
 $price = new \EnergyManager\Price\PriceAwattar();
@@ -13,29 +13,58 @@ $temp = new \EnergyManager\Temp\TempOpenMeteo([
 $hp = new \EnergyManager\Heatpump\HeatpumpDimplexDaikin([
     "lin_coef" => 0.017678,
     "quad_coef" => 0.002755,
-    "daikin"=>DaikinIPs,
-    "daikin_timetable"=>DaikinTimetable,
-    'ip'=>DimplexIP
-],$temp);
+    "daikin" => DaikinIPs,
+    "daikin_timetable" => DaikinTimetable,
+    'ip' => DimplexIP
+], $temp);
 $bev = new \EnergyManager\BEV\BevDIY([
     "ip" => BEV_DIV_ip,
     'kwh' => 17.9,
     'kw' => 2.2
 ]);
 
-$pv = new \EnergyManager\PV\PvSolarprognose([
-    'access_token' => Solarprognose_access_token,
-    'plant_id' => Solarprognose_plant_id,
-    'factor' => 2
+$wallbox = new \EnergyManager\BEV\BevDIYWallbox([
+    "ip" => WALLBOX_ip,
+    'kwh' => 24.3,
+    'min_kw' => 230*6/1000,
+    'max_kw' => 230*16/1000
 ]);
-$house = new \EnergyManager\House\HouseConstant(['kwh_per_day' => 10]);
+
+$ebike1 = new \EnergyManager\BEV\EBikeDIY([
+    "ip" => EBike_ip,
+    'kwh' => 0.8,
+    'kw' => 0.2
+]);
+
+$ebike2 = new \EnergyManager\BEV\EBikeDIY([
+    "ip" => EBike_ip,
+    'kwh' => 0.4,
+    'kw' => 0.08,
+    'nr' => 1
+]);
+
+$bevs = new \EnergyManager\BEV\BEVArray();
+$bevs->addBEV($ebike1);
+$bevs->addBEV($ebike2);
+$bevs->addBEV($bev);
+$bevs->addBEV($wallbox);
+
+$pv = new \EnergyManager\PV\PvForecastSolar([
+    'lon' => ForecastSolar_lon,
+    'lat' => ForecastSolar_lat,
+    'dec' => [ForecastSolar_dec1, ForecastSolar_dec2],
+    'az' => [ForecastSolar_az1, ForecastSolar_az2],
+    'kwp' => [ForecastSolar_kwp1, ForecastSolar_kwp2]
+]);
+
+$house = new \EnergyManager\House\HouseConstant(['kwh_per_day' => 8]);
 $bat = new \EnergyManager\Battery\BatteryKostalByd(['ip' => Kostal_Plenticore_Plus_ip]);
 
 
-$manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house, $bev, $hp);
+$manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house, $bevs, $hp);
 
 $manager->setSettings([
-    'charge_power'=>Charge_Power
+    'charge_power' => Charge_Power
 ]);
 
 require_once 'BayEOSGatewayClient.php';
@@ -43,7 +72,7 @@ require_once 'BayEOSGatewayClient.php';
 //Configuration for BayEOS
 $path = '/tmp/EnergyManager';
 $name = "EnergyManager";
-$url = "http://".BayEOS_IP."/gateway/frame/saveFlat";
+$url = "http://" . BayEOS_IP . "/gateway/frame/saveFlat";
 $options = array('user' => BayEOS_USER);
 
 //Create a BayEOSSimpleClient

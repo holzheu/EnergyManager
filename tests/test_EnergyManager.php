@@ -17,6 +17,10 @@ $bev = new \EnergyManager\BEV\BevDummy([
     'min_kw' => 1,
     'max_kw' => 3
 ]);
+$bevs = new \EnergyManager\BEV\BEVArray();
+$bevs->addBEV($bev);
+
+
 $house = new \EnergyManager\House\HouseConstant(['kwh_per_day' => 25]);
 $house2 = new \EnergyManager\House\HouseConstant(['kwh_per_day' => 5]);
 $price = new \EnergyManager\Price\PriceAwattar();
@@ -32,11 +36,11 @@ $hp = new \EnergyManager\Heatpump\HeatpumpQuadratic([
 
 
 //create manager
-$manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house, $bev, $hp);
+$manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house, $bevs, $hp);
 echo $manager->plan();
 
 
-$manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house2, $bev, $hp);
+$manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house2, $bevs, $hp);
 echo $manager->plan();
 
 print_r($manager->get_planning_info());

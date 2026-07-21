@@ -17,11 +17,13 @@ class HouseConstant extends House {
        
     }
 
-    public function plan(array $free_prod, \EnergyManager\Price\Price $price_obj){
+    public function plan(\EnergyManager\EnergyManager $em){
         $this->plan=[];
+        $free_prod = $em->getFreeProduction();
         foreach($free_prod as $hour => $prod){
             $this->plan[$hour]= $this->settings["kwh_per_day"]/24;
         }
+        $em->updateFreeProduction($this->plan);
     }
 
 

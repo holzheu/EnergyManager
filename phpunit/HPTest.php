@@ -57,12 +57,12 @@ class HPTest extends \PHPUnit\Framework\TestCase
         $house = new \EnergyManager\House\HouseConstant(['kwh_per_day' => 10]);
         $house->setTimeObj($time);
 
-        $manager = new \EnergyManager\EnergyManager($pv, $bat, $price, $house);
-        $manager->setTimeObj($time);
+        $em = new \EnergyManager\EnergyManager($pv, $bat, $price, $house);
+        $em->setTimeObj($time);
 
-        $manager->refresh();
+        $em->refresh();
 
-        $hp->plan($manager->getFreeProduction(), $price);
+        $hp->plan($em);
         $hp->setTimeObj($time);
 
         $res = $hp->getPlan();

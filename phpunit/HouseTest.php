@@ -10,16 +10,21 @@ class HouseTest extends \PHPUnit\Framework\TestCase
 
         $price = new \EnergyManager\Price\PriceFile();
         $price->setTimeObj($time);
-        $price->refresh();
 
         $pv = new \EnergyManager\PV\PVFile();
         $pv->setTimeObj($time);
-        $pv->refresh();
 
+        $bat = new \EnergyManager\Battery\BatteryDummy([
+            'kwh' => 10,
+            'soc' => 90,
+            'charge_power' => 1.5
+        ]);
 
         $house = new \EnergyManager\House\HouseConstant(['kwh_per_day' => 10]);
         $house->setTimeObj($time);
-        $house->plan($pv->getProduction(), $price);
+        $em = new \EnergyManager\EnergyManager($pv, $bat, $price, $house);
+        $em->setTimeObj($time);
+        $em->plan(); ## calls house->plan()
 
         $res = $house->getPlan();
         $this->assertEqualsWithDelta(0.416666, $res[1719882000], 0.0001);
